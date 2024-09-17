@@ -17,10 +17,12 @@ def ventana_principal():
     titulo.place(x=470,y=50)
 
 
-    img= tk.PhotoImage(file="D:\Mis Documentos\Documentos\Programacion 4\ProyectoF\currents.png")
+    """img= tk.PhotoImage(file="D:\Mis Documentos\Documentos\Programacion 4\ProyectoF\currents.png")
     label= tk.Label(image=img)
     label.pack()
     label.place(x=500,y=200)
+    EN CASO DE NO TENER IMAGEN PNG, DEJAR ESTA PARTE COMENTADA PARA EVITAR ERRORES DURANTE EL TESTEO
+    """
 
     stockb=tk.Button(principal,text="Stock y Ventas", fg="blue", font=("arial", 30), borderwidth=5, cursor = "hand2",relief = "raised", command = lambda:ventana_stock())
     stockb.pack()
@@ -119,7 +121,7 @@ def ventana_principal():
                     return
 
                 # Conectar a la base de datos y agregar el artículo
-                bdtest.agregar_producto(nombre, precio, cantidad)
+                backend.agregar_producto(nombre, precio, cantidad)
                 messagebox.showinfo("MODIFICACION", "ARTICULO INGRESADO")
                 window.destroy()
                 ventana_agregar()  # Reabrir la ventana de agregar para continuar ingresando productos
@@ -609,7 +611,6 @@ def ventana_principal():
 
 """ 
 LISTA DE COSAS POR TERMINAR
-- Conectar con la base de datos
 - Terminar ventana de stock y sus funciones
 --- Modificar la ventana modificar, buscar y eliminar para que los productos se puedan buscar por nombre
 -Modificar la ventana de historial de ventas para que las ventas se puedan ver y buscar por fecha
