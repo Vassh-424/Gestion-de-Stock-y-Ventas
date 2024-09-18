@@ -1,8 +1,9 @@
 import tkinter as tk
+import re
 import sqlite3
 from tkinter import messagebox
 from datetime import datetime
-import backend
+import bdtest
 
 ###############VENTANA PRINCIPAL#################
 
@@ -17,12 +18,10 @@ def ventana_principal():
     titulo.place(x=470,y=50)
 
 
-    """img= tk.PhotoImage(file="D:\Mis Documentos\Documentos\Programacion 4\ProyectoF\currents.png")
+    img= tk.PhotoImage(file="D:\Mis Documentos\Documentos\Programacion 4\ProyectoF\currents.png")
     label= tk.Label(image=img)
     label.pack()
     label.place(x=500,y=200)
-    EN CASO DE NO TENER IMAGEN PNG, DEJAR ESTA PARTE COMENTADA PARA EVITAR ERRORES DURANTE EL TESTEO
-    """
 
     stockb=tk.Button(principal,text="Stock y Ventas", fg="blue", font=("arial", 30), borderwidth=5, cursor = "hand2",relief = "raised", command = lambda:ventana_stock())
     stockb.pack()
@@ -121,7 +120,7 @@ def ventana_principal():
                     return
 
                 # Conectar a la base de datos y agregar el artículo
-                backend.agregar_producto(nombre, precio, cantidad)
+                bdtest.agregar_producto(nombre, precio, cantidad)
                 messagebox.showinfo("MODIFICACION", "ARTICULO INGRESADO")
                 window.destroy()
                 ventana_agregar()  # Reabrir la ventana de agregar para continuar ingresando productos
@@ -300,6 +299,88 @@ def ventana_principal():
     ###########HISTORIAL DE VENTAS##############
 
     def ventana_historial():
+        def validar_fecha(event):
+            contenido = fecha_entry.get()
+            # Si el contenido contiene 2 o 5 caracteres, añadir el separador '/'
+            if len(contenido) in [2, 5] and not contenido.endswith('/'):
+                fecha_entry.insert(tk.END, '/')
+            # Validar que solo se ingresen números y separadores '/'
+            if not re.match(r'^\d{0,2}/?\d{0,2}/?\d{0,2}$', contenido):
+                fecha_entry.delete(len(contenido)-1, tk.END)
+
+        def on_focus_in(event):
+            # Quitar el placeholder cuando el usuario haga clic
+            if fecha_entry.get() == "dd/mm/yy":
+                fecha_entry.delete(0, tk.END)
+                fecha_entry.config(fg="black")
+
+        def on_focus_out(event):
+            # Reinsertar el placeholder si el campo está vacío
+            if not fecha_entry.get():
+                fecha_entry.insert(0, "dd/mm/yy")
+                fecha_entry.config(fg="gray")
+
+        def buscar_por_fecha():
+            fecha = fecha_entry.get()
+            if re.match(r'^\d{2}/\d{2}/\d{2}$', fecha):
+                # Aquí usamos LIKE para filtrar fechas
+                query = f"SELECT id, detalle, fecha, hora, total FROM historial_ventas WHERE fecha LIKE '{fecha}%'"
+                mostrar_ventas(query)
+            else:
+                messagebox.showerror("Error de formato", "El formato de la fecha debe ser dd/mm/yy.")
+
+        def mostrar_ventas(query=None):
+            # Limpiar el contenido actual de details_frame
+            for widget in details_frame.winfo_children():
+                widget.destroy()
+
+            try:
+                db = sqlite3.connect("database.db")
+                c = db.cursor()
+
+                if query is None:
+                    # Mostrar todas las ventas si no se pasa una query de búsqueda
+                    query = "SELECT id, detalle, fecha, hora, total FROM historial_ventas ORDER BY fecha DESC, hora DESC"
+
+                c.execute(query)
+                ventas = c.fetchall()
+
+                if ventas:
+                    row_num = 1  # Empezar en la fila 1 (fila 0 está reservada para los encabezados)
+                    for venta in ventas:
+                        detalle, fecha, hora, total = venta[1], venta[2], venta[3], venta[4]
+
+                        # Dividir el detalle en líneas para cada producto
+                        productos = detalle.split('\n')
+
+                        # Mostrar los productos y los datos de la venta solo una vez
+                        for idx, producto in enumerate(productos):
+                            if idx == 0:
+                                # Mostrar la primera línea con la fecha, hora, y total
+                                tk.Label(details_frame, text=f"{producto}", bg="white", anchor="w", borderwidth=1, relief="solid", width=100, padx=5).grid(row=row_num, column=0, padx=5, pady=5, sticky="w")
+                                tk.Label(details_frame, text=f"{fecha}", bg="white", anchor="w", borderwidth=1, relief="solid", width=20).grid(row=row_num, column=1, padx=5, pady=5)
+                                tk.Label(details_frame, text=f"{hora}", bg="white", anchor="w", borderwidth=1, relief="solid", width=15).grid(row=row_num, column=2, padx=5, pady=5)
+                                tk.Label(details_frame, text=f"${total:.2f}", bg="white", anchor="w", borderwidth=1, relief="solid", width=15).grid(row=row_num, column=3, padx=5, pady=5)
+                            else:
+                                # Mostrar solo el producto en las siguientes líneas
+                                tk.Label(details_frame, text=f"{producto}", bg="white", anchor="w", borderwidth=1, relief="solid", width=100, padx=5).grid(row=row_num, column=0, padx=5, pady=5, sticky="w")
+
+                            row_num += 1
+
+                        # Añadir una fila en blanco entre compras
+                        tk.Label(details_frame, text="", bg="white").grid(row=row_num, column=0, columnspan=4, padx=5, pady=5)
+                        row_num += 1
+                else:
+                    tk.Label(details_frame, text="No se encontraron ventas.", bg="white").grid(row=1, column=0, columnspan=4, padx=5, pady=5)
+
+            except sqlite3.Error as e:
+                messagebox.showerror("Error", f"Error al conectar con la base de datos: {e}")
+            finally:
+                if c:
+                    c.close()
+                if db:
+                    db.close()
+
         historial = tk.Toplevel()
         historial.geometry("1600x900")
         historial.title("Historial de Ventas")
@@ -307,9 +388,23 @@ def ventana_principal():
 
         tk.Label(historial, text="VENTAS REALIZADAS :", bg="white", fg="black", font=("Arial", 14)).place(x=50, y=50)
 
+        # Barra de búsqueda por fecha con placeholder
+        tk.Label(historial, text="Buscar por fecha:", font=("Arial", 12)).place(x=500, y=50)
+        fecha_entry = tk.Entry(historial, font=("Arial", 12), width=10, fg="gray")
+        fecha_entry.insert(0, "dd/mm/yy")
+        fecha_entry.place(x=750, y=50)
+        fecha_entry.bind('<KeyRelease>', validar_fecha)
+        fecha_entry.bind('<FocusIn>', on_focus_in)
+        fecha_entry.bind('<FocusOut>', on_focus_out)
+
+        # Botón para buscar
+        buscar_button = tk.Button(historial, text="Buscar", command=buscar_por_fecha)
+        buscar_button.place(x=850, y=50)
+
         main_frame = tk.Frame(historial, bg="white")
         main_frame.place(x=50, y=100, width=1500, height=600)
 
+        # Encabezados de las columnas
         tk.Label(main_frame, text="DETALLE", bg="lightgray", width=100, anchor="w", borderwidth=1, relief="solid").grid(row=0, column=0, padx=5, pady=5, sticky="w")
         tk.Label(main_frame, text="FECHA", bg="lightgray", width=20, anchor="w", borderwidth=1, relief="solid").grid(row=0, column=1, padx=5, pady=5)
         tk.Label(main_frame, text="HORA", bg="lightgray", width=15, anchor="w", borderwidth=1, relief="solid").grid(row=0, column=2, padx=5, pady=5)
@@ -318,44 +413,8 @@ def ventana_principal():
         details_frame = tk.Frame(main_frame, bg="white")
         details_frame.grid(row=1, column=0, columnspan=4, padx=5, pady=5, sticky="w")
 
-        try:
-            db = sqlite3.connect("database.db")
-            c = db.cursor()
-
-            c.execute('''
-                SELECT id, detalle, fecha, hora, total
-                FROM historial_ventas
-                ORDER BY fecha DESC, hora DESC
-            ''')
-
-            ventas = c.fetchall()
-
-            if ventas:
-                row_num = 0
-                for venta in ventas:
-                    detalle = venta[1]
-                    fecha = venta[2]
-                    hora = venta[3]
-                    total = venta[4]
-
-                    tk.Label(details_frame, text=f"{detalle}", bg="white", anchor="w", borderwidth=1, relief="solid").grid(row=row_num, column=0, padx=5, pady=5, sticky="w")
-                    tk.Label(details_frame, text=f"{fecha}", bg="white", anchor="w", borderwidth=1, relief="solid").grid(row=row_num, column=1, padx=5, pady=5)
-                    tk.Label(details_frame, text=f"{hora}", bg="white", anchor="w", borderwidth=1, relief="solid").grid(row=row_num, column=2, padx=5, pady=5)
-                    tk.Label(details_frame, text=f"${total:.2f}", bg="white", anchor="w", borderwidth=1, relief="solid").grid(row=row_num, column=3, padx=5, pady=5)
-
-                    row_num += 1
-            else:
-                tk.Label(main_frame, text="No se encontraron ventas.", bg="white").grid(row=1, column=0, columnspan=4, padx=5, pady=5)
-
-        except sqlite3.Error as e:
-            print(f"Error al conectar con la base de datos: {e}")
-            tk.Label(main_frame, text="Error al conectar con la base de datos.", bg="white").grid(row=1, column=0, columnspan=4, padx=5, pady=5)
-
-        finally:
-            if c:
-                c.close()
-            if db:
-                db.close()
+        # Mostrar ventas predeterminadamente
+        mostrar_ventas()
 
 
 
@@ -539,7 +598,7 @@ def ventana_principal():
         bt_agregar_producto.pack()
         bt_agregar_producto.place(x=50, y=300)
 
-        def realizar_venta():
+        def realizar_venta(): #Modificar de manera que cada producto insertado haga un salto de linea para el otro
             if not productos_compra:
                 messagebox.showerror("Error", "No hay productos en la compra")
                 return
@@ -547,7 +606,8 @@ def ventana_principal():
             db = sqlite3.connect("database.db")
             c = db.cursor()
 
-            fecha_actual = datetime.now().strftime("%Y-%m-%d")
+            # Modificar el formato de la fecha a dd/mm/yy
+            fecha_actual = datetime.now().strftime("%d/%m/%y")
             hora_actual = datetime.now().strftime("%H:%M:%S")
 
             # Lista para almacenar el detalle de la venta
@@ -614,7 +674,6 @@ LISTA DE COSAS POR TERMINAR
 - Terminar ventana de stock y sus funciones
 --- Modificar la ventana modificar, buscar y eliminar para que los productos se puedan buscar por nombre
 -Modificar la ventana de historial de ventas para que las ventas se puedan ver y buscar por fecha
---- Ademas, asegurarse que el nombre del/los producto/ se vea en el historial de ventas
 -Opcional: Agregar calculadora para que se pueda calcular el vuelto a dar despues de una compra
 """
     
