@@ -8,7 +8,7 @@ import backend
 
 def ventana_principal():
     principal = tk.Tk()
-    principal.geometry("1600x900")
+    principal.state("zoomed")
     principal.title("Gestion de Stock y Ventas")
     principal.resizable(0, 0)
 
@@ -45,7 +45,7 @@ def ventana_principal():
     ###########STOCK##############
     def ventana_stock():
         stock = tk.Tk()
-        stock.geometry("1600x900")
+        stock.state("zoomed")
         stock.title("Gestion de Stock")
         stock.resizable(0, 0)
 
@@ -69,7 +69,7 @@ def ventana_principal():
 
         def ventana_agregar():
             window = tk.Toplevel()
-            window.geometry("1600x900")
+            window.state("zoomed")
             window.title("Agregar Productos")
             window.resizable(0, 0)
 
@@ -126,7 +126,7 @@ def ventana_principal():
 
         def ventana_ver():
             window = tk.Toplevel()
-            window.geometry("1600x900")
+            window.state("zoomed")
 
             # Crear un Frame principal para organizar los widgets con grid
             frame = tk.Frame(window, bg="white")
@@ -205,7 +205,7 @@ def ventana_principal():
 
         def modificar_producto(): ##Modificar de manera que se pueda buscar un producto y de ahi modificar su nombre y/o precio
             window = tk.Toplevel()
-            window.geometry("1600x900")
+            window.state("zoomed")
             window.title("Modificar producto")
             window.resizable(0,0)
 
@@ -257,7 +257,7 @@ def ventana_principal():
         ########ELIMINAR PRODUCTO##########
         def ventana_eliminar(): ##Modificar de manera en que sea mas facil encontrar y eliminar un producto
             window = tk.Toplevel()
-            window.geometry("1600x900")
+            window.state("zoomed")
             window.title("ELIMINAR PRODUCTOS")
             window.resizable(0,0)
             e1 = tk.Label(window, text=" ELIMINAR PRODUCTOS :", bg="white", fg="black").place(x=50, y=50)
@@ -385,7 +385,7 @@ def ventana_principal():
                     db.close()
 
         historial = tk.Toplevel()
-        historial.geometry("1600x900")
+        historial.state("zoomed")
         historial.title("Historial de Ventas")
         historial.resizable(0, 0)
 
@@ -402,7 +402,7 @@ def ventana_principal():
         mes_entry.place(x=650, y=50)
         mes_entry.bind('<KeyRelease>', validar_mes)
 
-        tk.Label(historial, text="Año (24 en adelante):", font=("Arial", 12)).place(x=700, y=50)
+        tk.Label(historial, text="Año:", font=("Arial", 12)).place(x=700, y=50)
         anio_entry = tk.Entry(historial, font=("Arial", 12), width=5)
         anio_entry.place(x=850, y=50)
 
@@ -432,7 +432,7 @@ def ventana_principal():
     ###########NUEVA VENTA##############
     def ventana_crear_compra():
         window = tk.Toplevel()
-        window.geometry("1600x900")
+        window.state("zoomed")
         window.title("Nueva Venta")
         window.resizable(0, 0)
 
@@ -604,7 +604,7 @@ def ventana_principal():
         bt_agregar_producto.pack()
         bt_agregar_producto.place(x=50, y=300)
 
-        def realizar_venta(): #Modificar de manera que cada producto insertado haga un salto de linea para el otro
+        def realizar_venta():
             if not productos_compra:
                 messagebox.showerror("Error", "No hay productos en la compra")
                 return
@@ -612,7 +612,7 @@ def ventana_principal():
             db = sqlite3.connect("database.db")
             c = db.cursor()
 
-            # Modificar el formato de la fecha a dd/mm/yy
+            # Asegurarse de que el formato de la fecha sea dd/mm/yy
             fecha_actual = datetime.now().strftime("%d/%m/%y")
             hora_actual = datetime.now().strftime("%H:%M:%S")
 
@@ -638,14 +638,20 @@ def ventana_principal():
             # Convertir la lista de productos en un string para el campo 'detalle' de la tabla 'historial_ventas'
             detalle_venta_str = "; ".join(detalle_venta)
 
-            # Registrar la venta en la tabla 'historial_ventas'
+            # Registrar la venta en la tabla 'historial_ventas' con la fecha en formato dd/mm/yy
             c.execute("INSERT INTO historial_ventas (detalle, fecha, hora, total) VALUES (?, ?, ?, ?)",
                     (detalle_venta_str, fecha_actual, hora_actual, total_compra))
+
+            # Vaciar la tabla 'carrito' después de registrar la venta
+            c.execute("DELETE FROM carrito")
 
             db.commit()
             db.close()
 
             messagebox.showinfo("VENTA REALIZADA", f"Venta realizada por un monto total de ${total_compra:.2f}")
+
+            # Reiniciar el estado de la ventana
+            productos_compra.clear()  # Vaciar la lista de productos en la compra actual
             window.destroy()  # Cerrar la ventana de compra
                 # Botón para realizar la venta
         bt_vender = tk.Button(window, text="REALIZAR VENTA", fg="blue", font=("arial", 12), cursor="hand2", relief="raised", command=realizar_venta)
