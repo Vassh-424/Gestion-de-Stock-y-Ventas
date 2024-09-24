@@ -1,9 +1,8 @@
 import tkinter as tk
-import re
 import sqlite3
 from tkinter import messagebox
 from datetime import datetime
-import bdtest
+import backend
 
 ###############VENTANA PRINCIPAL#################
 
@@ -13,9 +12,9 @@ def ventana_principal():
     principal.title("Gestion de Stock y Ventas")
     principal.resizable(0, 0)
 
-    titulo= tk.Label(text="GESTION DE STOCK Y VENTAS",padx=10, font=("Arial", 30))
+    titulo= tk.Label(text="GESTION DE STOCK Y VENTAS",padx=10, font=("Arial", 40, "bold"))
     titulo.pack()
-    titulo.place(x=470,y=50)
+    titulo.place(x=60,y=50)
 
 
     img= tk.PhotoImage(file="D:\Mis Documentos\Documentos\Programacion 4\ProyectoF\currents.png")
@@ -25,19 +24,19 @@ def ventana_principal():
 
     stockb=tk.Button(principal,text="Stock y Ventas", fg="blue", font=("arial", 30), borderwidth=5, cursor = "hand2",relief = "raised", command = lambda:ventana_stock())
     stockb.pack()
-    stockb.place(x=150,y=650)
+    stockb.place(x=1100,y=150)
 
     ventasb=tk.Button(principal,text="Nueva Venta", fg="blue", font=("arial", 30), state= "normal", borderwidth=5, cursor = "hand2",relief = "raised", command = lambda:ventana_crear_compra())
     ventasb.pack()
-    ventasb.place(x=660,y=650)
+    ventasb.place(x=1100,y=350)
 
     detalle_ventasb= tk.Button(principal, text="Historial de Ventas", fg="blue", font=("arial", 30), borderwidth=5, cursor = "hand2",relief = "raised", command= lambda:ventana_historial())
     detalle_ventasb.pack()
-    detalle_ventasb.place(x=1100,y=650)
+    detalle_ventasb.place(x=1100,y=550)
 
     salir=tk.Button(principal,text="Salir", fg="red", font=("arial", 15), borderwidth=5, cursor = "hand2",relief = "raised", command = lambda:cerrar_programa())
     salir.pack()
-    salir.place(x=770,y=750)
+    salir.place(x=1100,y=700)
 
     ###########CERRAR PROGRAMA##############
     def cerrar_programa():
@@ -120,7 +119,7 @@ def ventana_principal():
                     return
 
                 # Conectar a la base de datos y agregar el artículo
-                bdtest.agregar_producto(nombre, precio, cantidad)
+                backend.agregar_producto(nombre, precio, cantidad)
                 messagebox.showinfo("MODIFICACION", "ARTICULO INGRESADO")
                 window.destroy()
                 ventana_agregar()  # Reabrir la ventana de agregar para continuar ingresando productos
@@ -299,38 +298,48 @@ def ventana_principal():
     ###########HISTORIAL DE VENTAS##############
 
     def ventana_historial():
-        def validar_fecha(event):
-            contenido = fecha_entry.get()
-            # Si el contenido contiene 2 o 5 caracteres, añadir el separador '/'
-            if len(contenido) in [2, 5] and not contenido.endswith('/'):
-                fecha_entry.insert(tk.END, '/')
-            # Validar que solo se ingresen números y separadores '/'
-            if not re.match(r'^\d{0,2}/?\d{0,2}/?\d{0,2}$', contenido):
-                fecha_entry.delete(len(contenido)-1, tk.END)
+        def validar_dia(event):
+            try:
+                dia = int(dia_entry.get())
+                if dia < 1 or dia > max_dias():
+                    dia_entry.delete(0, tk.END)
+            except ValueError:
+                pass  # Ignore if it's not a number yet
 
-        def on_focus_in(event):
-            # Quitar el placeholder cuando el usuario haga clic
-            if fecha_entry.get() == "dd/mm/yy":
-                fecha_entry.delete(0, tk.END)
-                fecha_entry.config(fg="black")
+        def validar_mes(event):
+            try:
+                mes = int(mes_entry.get())
+                if mes < 1 or mes > 12:
+                    mes_entry.delete(0, tk.END)
+            except ValueError:
+                pass
 
-        def on_focus_out(event):
-            # Reinsertar el placeholder si el campo está vacío
-            if not fecha_entry.get():
-                fecha_entry.insert(0, "dd/mm/yy")
-                fecha_entry.config(fg="gray")
+        def max_dias():
+            mes = mes_entry.get()
+            if mes in ['4', '6', '9', '11']:  # Meses con 30 días
+                return 30
+            elif mes == '2':  # Febrero con 28 días
+                return 28
+            else:
+                return 31  # El resto de meses con 31 días
 
         def buscar_por_fecha():
-            fecha = fecha_entry.get()
-            if re.match(r'^\d{2}/\d{2}/\d{2}$', fecha):
-                # Aquí usamos LIKE para filtrar fechas
-                query = f"SELECT id, detalle, fecha, hora, total FROM historial_ventas WHERE fecha LIKE '{fecha}%'"
-                mostrar_ventas(query)
-            else:
-                messagebox.showerror("Error de formato", "El formato de la fecha debe ser dd/mm/yy.")
+            dia = dia_entry.get()
+            mes = mes_entry.get()
+            anio = anio_entry.get()
+
+            # Formar la query basándonos en los valores proporcionados
+            query = "SELECT id, detalle, fecha, hora, total FROM historial_ventas WHERE 1=1"
+            if dia:
+                query += f" AND SUBSTR(fecha, 1, 2) = '{dia.zfill(2)}'"
+            if mes:
+                query += f" AND SUBSTR(fecha, 4, 2) = '{mes.zfill(2)}'"
+            if anio:
+                query += f" AND SUBSTR(fecha, 7, 2) = '{anio.zfill(2)}'"
+            
+            mostrar_ventas(query)
 
         def mostrar_ventas(query=None):
-            # Limpiar el contenido actual de details_frame
             for widget in details_frame.winfo_children():
                 widget.destroy()
 
@@ -339,35 +348,29 @@ def ventana_principal():
                 c = db.cursor()
 
                 if query is None:
-                    # Mostrar todas las ventas si no se pasa una query de búsqueda
                     query = "SELECT id, detalle, fecha, hora, total FROM historial_ventas ORDER BY fecha DESC, hora DESC"
-
+                
                 c.execute(query)
                 ventas = c.fetchall()
 
                 if ventas:
-                    row_num = 1  # Empezar en la fila 1 (fila 0 está reservada para los encabezados)
+                    row_num = 1
                     for venta in ventas:
                         detalle, fecha, hora, total = venta[1], venta[2], venta[3], venta[4]
 
-                        # Dividir el detalle en líneas para cada producto
                         productos = detalle.split('\n')
 
-                        # Mostrar los productos y los datos de la venta solo una vez
                         for idx, producto in enumerate(productos):
                             if idx == 0:
-                                # Mostrar la primera línea con la fecha, hora, y total
                                 tk.Label(details_frame, text=f"{producto}", bg="white", anchor="w", borderwidth=1, relief="solid", width=100, padx=5).grid(row=row_num, column=0, padx=5, pady=5, sticky="w")
                                 tk.Label(details_frame, text=f"{fecha}", bg="white", anchor="w", borderwidth=1, relief="solid", width=20).grid(row=row_num, column=1, padx=5, pady=5)
                                 tk.Label(details_frame, text=f"{hora}", bg="white", anchor="w", borderwidth=1, relief="solid", width=15).grid(row=row_num, column=2, padx=5, pady=5)
                                 tk.Label(details_frame, text=f"${total:.2f}", bg="white", anchor="w", borderwidth=1, relief="solid", width=15).grid(row=row_num, column=3, padx=5, pady=5)
                             else:
-                                # Mostrar solo el producto en las siguientes líneas
                                 tk.Label(details_frame, text=f"{producto}", bg="white", anchor="w", borderwidth=1, relief="solid", width=100, padx=5).grid(row=row_num, column=0, padx=5, pady=5, sticky="w")
 
                             row_num += 1
 
-                        # Añadir una fila en blanco entre compras
                         tk.Label(details_frame, text="", bg="white").grid(row=row_num, column=0, columnspan=4, padx=5, pady=5)
                         row_num += 1
                 else:
@@ -388,18 +391,24 @@ def ventana_principal():
 
         tk.Label(historial, text="VENTAS REALIZADAS :", bg="white", fg="black", font=("Arial", 14)).place(x=50, y=50)
 
-        # Barra de búsqueda por fecha con placeholder
-        tk.Label(historial, text="Buscar por fecha:", font=("Arial", 12)).place(x=500, y=50)
-        fecha_entry = tk.Entry(historial, font=("Arial", 12), width=10, fg="gray")
-        fecha_entry.insert(0, "dd/mm/yy")
-        fecha_entry.place(x=750, y=50)
-        fecha_entry.bind('<KeyRelease>', validar_fecha)
-        fecha_entry.bind('<FocusIn>', on_focus_in)
-        fecha_entry.bind('<FocusOut>', on_focus_out)
+        # Campos de búsqueda por día, mes, año
+        tk.Label(historial, text="Día:", font=("Arial", 12)).place(x=500, y=50)
+        dia_entry = tk.Entry(historial, font=("Arial", 12), width=5)
+        dia_entry.place(x=550, y=50)
+        dia_entry.bind('<KeyRelease>', validar_dia)
+
+        tk.Label(historial, text="Mes:", font=("Arial", 12)).place(x=600, y=50)
+        mes_entry = tk.Entry(historial, font=("Arial", 12), width=5)
+        mes_entry.place(x=650, y=50)
+        mes_entry.bind('<KeyRelease>', validar_mes)
+
+        tk.Label(historial, text="Año (24 en adelante):", font=("Arial", 12)).place(x=700, y=50)
+        anio_entry = tk.Entry(historial, font=("Arial", 12), width=5)
+        anio_entry.place(x=850, y=50)
 
         # Botón para buscar
         buscar_button = tk.Button(historial, text="Buscar", command=buscar_por_fecha)
-        buscar_button.place(x=850, y=50)
+        buscar_button.place(x=900, y=50)
 
         main_frame = tk.Frame(historial, bg="white")
         main_frame.place(x=50, y=100, width=1500, height=600)
@@ -413,13 +422,10 @@ def ventana_principal():
         details_frame = tk.Frame(main_frame, bg="white")
         details_frame.grid(row=1, column=0, columnspan=4, padx=5, pady=5, sticky="w")
 
-        # Mostrar ventas predeterminadamente
+        menu_button = tk.Button(historial, fg= "red", text="Volver", font= ("arial", 16),command= historial.destroy)
+        menu_button.place(x=40, y=800)
+
         mostrar_ventas()
-
-
-
-
-
 
 
 
@@ -651,16 +657,6 @@ def ventana_principal():
         menu.pack()
         menu.place(x=50, y=550)
 
-
-
-
-
-
-
-
-
-
-    
 
 
 
