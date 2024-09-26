@@ -12,7 +12,7 @@ def ventana_principal():
     principal.title("Gestion de Stock y Ventas")
     principal.resizable(0, 0)
 
-    titulo= tk.Label(text="GESTION DE STOCK Y VENTAS",padx=10, font=("Arial", 40, "bold"))
+    titulo= tk.Label(text="GESTION DE STOCK Y VENTAS V1",padx=10, font=("Arial", 40, "bold"))
     titulo.pack()
     titulo.place(x=60,y=50)
 
@@ -20,7 +20,7 @@ def ventana_principal():
     img= tk.PhotoImage(file="D:\Mis Documentos\Documentos\Programacion 4\ProyectoF\currents.png")
     label= tk.Label(image=img)
     label.pack()
-    label.place(x=500,y=200)
+    label.place(x=200,y=150)
 
     stockb=tk.Button(principal,text="Stock y Ventas", fg="blue", font=("arial", 30), borderwidth=5, cursor = "hand2",relief = "raised", command = lambda:ventana_stock())
     stockb.pack()
@@ -36,7 +36,7 @@ def ventana_principal():
 
     salir=tk.Button(principal,text="Salir", fg="red", font=("arial", 15), borderwidth=5, cursor = "hand2",relief = "raised", command = lambda:cerrar_programa())
     salir.pack()
-    salir.place(x=1100,y=700)
+    salir.place(x=1100,y=720)
 
     ###########CERRAR PROGRAMA##############
     def cerrar_programa():
@@ -127,6 +127,7 @@ def ventana_principal():
         def ventana_ver():
             window = tk.Toplevel()
             window.state("zoomed")
+            window.title("Busqueda(Modificar)")
 
             # Crear un Frame principal para organizar los widgets con grid
             frame = tk.Frame(window, bg="white")
@@ -258,7 +259,7 @@ def ventana_principal():
         def ventana_eliminar(): ##Modificar de manera en que sea mas facil encontrar y eliminar un producto
             window = tk.Toplevel()
             window.state("zoomed")
-            window.title("ELIMINAR PRODUCTOS")
+            window.title("ELIMINAR PRODUCTOS(Modificar)")
             window.resizable(0,0)
             e1 = tk.Label(window, text=" ELIMINAR PRODUCTOS :", bg="white", fg="black").place(x=50, y=50)
             
