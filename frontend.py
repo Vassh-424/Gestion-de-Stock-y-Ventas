@@ -65,6 +65,10 @@ def ventana_principal():
         eliminar = tk.Button(marcos, text="ELIMINAR PRODUCTO", fg="blue", font=("arial", 15), cursor="hand2", relief="raised", command= lambda:ventana_eliminar())
         eliminar.grid(row=4, column=0, padx=10, pady=20, sticky="w")
 
+        menu = tk.Button(marcos, text="Volver", fg="red", font=("arial", 12), cursor="hand2", relief="raised", command=stock.destroy)
+        menu.grid(row=5, column=0, padx=10, pady=20, sticky="w")
+
+
         ########AGREGAR PRODUCTO############
 
         def ventana_agregar():
@@ -204,37 +208,120 @@ def ventana_principal():
 
         ########MODIFICAR PRODUCTO############
 
-        def modificar_producto(): ##Modificar de manera que se pueda buscar un producto y de ahi modificar su nombre y/o precio
+        def modificar_producto():
             window = tk.Toplevel()
             window.state("zoomed")
             window.title("Modificar producto")
-            window.resizable(0,0)
+            window.resizable(0, 0)
 
             e1 = tk.Label(window, text=" MODIFICAR PRODUCTOS :", bg="white", fg="black").place(x=50, y=50)
-            
-            # Variable para ID
-            entry_id = tk.StringVar()
-            productotx = tk.Entry(window, textvariable=entry_id).place(x=50, y=150)
 
-            # Etiqueta para ID
-            etiquetanombre = tk.Label(window, text="INGRESE CODIGO DEL PRODUCTO", padx=10).place(x=30, y=100)
+            # Variable para el nombre del producto
+            entry_nombre = tk.StringVar()
+            entry_widget = tk.Entry(window, textvariable=entry_nombre)
+            entry_widget.place(x=50, y=150)
 
-            # Variable para nuevo valor
-            entry_valor = tk.StringVar()
-            valortx = tk.Entry(window, textvariable=entry_valor).place(x=50, y=250)
+            # Etiqueta para el nombre del producto
+            etiquetanombre = tk.Label(window, text="INGRESE NOMBRE DEL PRODUCTO", padx=10).place(x=30, y=100)
 
-            # Etiqueta para nuevo valor
-            etiquetanombre = tk.Label(window, text="INGRESE EL NUEVO PRECIO PARA EL PRODUCTO", padx=10).place(x=30, y=200)
+            # Listbox para autocompletar
+            lista_sugerencias = tk.Listbox(window, width=30, height=5, font=("Arial", 10))
+            lista_sugerencias.place(x=50, y=180)  # Colocar justo debajo del Entry
+            lista_sugerencias.place_forget()  # Ocultarla inicialmente
 
-            ####FUNCION PARA MODIFICAR EL PRODUCTO
+            # Frame para los inputs de modificar producto (oculto inicialmente)
+            frame_modificar = tk.Frame(window)
+            frame_modificar.place(x=400, y=100)
+            frame_modificar.place_forget()
+
+            # Variables para los nuevos valores
+            entry_nuevo_nombre = tk.StringVar()
+            entry_nueva_cantidad = tk.StringVar()
+            entry_nuevo_precio = tk.StringVar()
+
+            # Etiquetas e Inputs en el frame
+            tk.Label(frame_modificar, text="Nuevo Nombre:", padx=10).grid(row=0, column=0, pady=5)
+            tk.Entry(frame_modificar, textvariable=entry_nuevo_nombre).grid(row=0, column=1, pady=5)
+
+            tk.Label(frame_modificar, text="Nueva Cantidad:", padx=10).grid(row=1, column=0, pady=5)
+            tk.Entry(frame_modificar, textvariable=entry_nueva_cantidad).grid(row=1, column=1, pady=5)
+
+            tk.Label(frame_modificar, text="Nuevo Precio:", padx=10).grid(row=2, column=0, pady=5)
+            tk.Entry(frame_modificar, textvariable=entry_nuevo_precio).grid(row=2, column=1, pady=5)
+
+            def actualizar_sugerencias(event=None):
+                """
+                Función que busca productos que coincidan con el texto ingresado y actualiza la lista de sugerencias.
+                """
+                nombre_producto = entry_nombre.get()
+                if not nombre_producto:
+                    lista_sugerencias.place_forget()
+                    return
+
+                # Conectar a la base de datos y buscar coincidencias
+                db = sqlite3.connect("database.db")
+                c = db.cursor()
+
+                c.execute("SELECT nombre FROM productos WHERE nombre LIKE ?", ('%' + nombre_producto + '%',))
+                productos = c.fetchall()
+
+                db.close()
+
+                # Actualizar la Listbox con las sugerencias
+                lista_sugerencias.delete(0, tk.END)  # Limpiar la lista previa
+
+                if productos:
+                    for producto in productos:
+                        lista_sugerencias.insert(tk.END, producto[0])
+
+                    # Mostrar la Listbox si hay resultados
+                    lista_sugerencias.place(x=50, y=180)
+                else:
+                    # Ocultar la Listbox si no hay coincidencias
+                    lista_sugerencias.place_forget()
+
+            def seleccionar_sugerencia(event=None):
+                """
+                Función que se ejecuta al seleccionar un producto de la lista de sugerencias.
+                """
+                seleccion = lista_sugerencias.get(lista_sugerencias.curselection())  # Obtener el producto seleccionado
+                entry_nombre.set(seleccion)  # Establecer el nombre en el Entry
+                lista_sugerencias.place_forget()  # Ocultar la lista de sugerencias
+                frame_modificar.place(x=400, y=100)  # Mostrar el frame para modificar producto
+
+            # Ocultar el frame y resetear inputs cuando se vuelve a hacer clic en el campo de búsqueda o se presiona el botón cancelar
+            def ocultar_modificar(event=None):
+                frame_modificar.place_forget()
+                entry_nuevo_nombre.set("")
+                entry_nueva_cantidad.set("")
+                entry_nuevo_precio.set("")
+
+            # Vincular eventos
+            lista_sugerencias.bind("<<ListboxSelect>>", seleccionar_sugerencia)
+            entry_widget.bind("<Button-1>", ocultar_modificar)
+            entry_widget.bind("<KeyRelease>", actualizar_sugerencias)
+
             def modificar():
                 db = sqlite3.connect("database.db")
                 c = db.cursor()
 
-                id_producto = entry_id.get()
-                nuevo_precio = entry_valor.get()
-            
-                c.execute("UPDATE productos SET precio = ? WHERE id = ?", (nuevo_precio, id_producto))
+                nombre_producto = entry_nombre.get()
+                nuevo_nombre = entry_nuevo_nombre.get()
+                nueva_cantidad = entry_nueva_cantidad.get()
+                nuevo_precio = entry_nuevo_precio.get()
+
+                # Actualizar nombre si no está vacío
+                if nuevo_nombre:
+                    c.execute("UPDATE productos SET nombre = ? WHERE nombre = ?", (nuevo_nombre, nombre_producto))
+
+                # Actualizar cantidad si no está vacía
+                if nueva_cantidad:
+                    c.execute("UPDATE productos SET cantidad = ? WHERE nombre = ?", (nueva_cantidad, nombre_producto))
+
+                # Actualizar precio si no está vacío
+                if nuevo_precio:
+                    c.execute("UPDATE productos SET precio = ? WHERE nombre = ?", (nuevo_precio, nombre_producto))
+
                 db.commit()
                 c.close()
                 db.close()
@@ -242,58 +329,122 @@ def ventana_principal():
                 window.destroy()
                 modificar_producto()
 
-            # Boton para MENU
+            # Botón para confirmar los cambios
+            bt_modificar = tk.Button(frame_modificar, text="CONFIRMAR CAMBIOS", fg="blue", font=("arial", 12), cursor="hand2", relief="raised", command=modificar)
+            bt_modificar.grid(row=3, columnspan=2, pady=10)
+
+            # Botón "Cancelar" para ocultar el frame de modificación
+            bt_cancelar = tk.Button(frame_modificar, text="CANCELAR", fg="red", font=("arial", 12), cursor="hand2", relief="raised", command=ocultar_modificar)
+            bt_cancelar.grid(row=4, columnspan=2, pady=10)
+
+            # Botón para Volver
             menu = tk.Button(window, text="Volver", fg="red", font=("arial", 12), cursor="hand2", relief="raised", command=window.destroy)
             menu.pack()
             menu.place(x=50, y=350)
-            
-            # Boton para MODIFICAR
-            bt_modificar = tk.Button(window, text="MODIFICAR PRODUCTO", fg="blue", font=("arial", 12), cursor="hand2", relief="raised", command=modificar)
-            bt_modificar.pack()
-            bt_modificar.place(x=280, y=350)
-
 
 
 
         ########ELIMINAR PRODUCTO##########
-        def ventana_eliminar(): ##Modificar de manera en que sea mas facil encontrar y eliminar un producto
-            window = tk.Toplevel()
-            window.state("zoomed")
-            window.title("ELIMINAR PRODUCTOS(Modificar)")
-            window.resizable(0,0)
-            e1 = tk.Label(window, text=" ELIMINAR PRODUCTOS :", bg="white", fg="black").place(x=50, y=50)
-            
-            # Variable para ID
-            entry_id = tk.StringVar()
-            productotx = tk.Entry(window, textvariable=entry_id).place(x=50, y=150)
+    def ventana_eliminar():
+        window = tk.Toplevel()
+        window.state("zoomed")
+        window.title("ELIMINAR PRODUCTOS")
+        window.resizable(0, 0)
 
-            # Etiqueta para ID
-            etiquetanombre = tk.Label(window, text="INGRESE CODIGO DEL PRODUCTO", padx=10).place(x=30, y=115)
+        e1 = tk.Label(window, text=" ELIMINAR PRODUCTOS :", bg="white", fg="black").place(x=50, y=50)
 
-            ##### FUNCION PARA ELIMINAR EL PRODUCTO
-            def eliminar():
-                db = sqlite3.connect("database.db")
-                c = db.cursor()
+        # Variable para el nombre del producto
+        nombre_producto = tk.StringVar()
+        entry_widget = tk.Entry(window, textvariable=nombre_producto, font=("Arial", 12), width=30)
+        entry_widget.place(x=50, y=150)
 
-                id_producto = entry_id.get()
-            
-                c.execute("DELETE FROM productos WHERE id = ?", (id_producto,))
+        # Etiqueta para el nombre
+        etiquetanombre = tk.Label(window, text="INGRESE NOMBRE DEL PRODUCTO", font=("Arial", 12), padx=10).place(x=30, y=115)
+
+        # Listbox para autocompletar
+        lista_sugerencias = tk.Listbox(window, width=30, height=5, font=("Arial", 10))
+        lista_sugerencias.place(x=50, y=180)  # Colocar justo debajo del Entry
+        lista_sugerencias.place_forget()  # Ocultarla inicialmente
+
+        def actualizar_sugerencias(event=None):
+            """
+            Función que busca productos que coincidan con el texto ingresado y actualiza la lista de sugerencias.
+            """
+            texto_ingresado = nombre_producto.get()
+            if not texto_ingresado:
+                lista_sugerencias.place_forget()
+                return
+
+            # Conectar a la base de datos y buscar coincidencias
+            db = sqlite3.connect("database.db")
+            c = db.cursor()
+
+            c.execute("SELECT nombre FROM productos WHERE nombre LIKE ?", ('%' + texto_ingresado + '%',))
+            productos = c.fetchall()
+
+            db.close()
+
+            # Actualizar la Listbox con las sugerencias
+            lista_sugerencias.delete(0, tk.END)  # Limpiar la lista previa
+
+            if productos:
+                for producto in productos:
+                    lista_sugerencias.insert(tk.END, producto[0])
+
+                # Mostrar la Listbox si hay resultados
+                lista_sugerencias.place(x=50, y=180)
+            else:
+                # Ocultar la Listbox si no hay coincidencias
+                lista_sugerencias.place_forget()
+
+        def seleccionar_sugerencia(event=None):
+            """
+            Función que se ejecuta al seleccionar un producto de la lista de sugerencias.
+            """
+            seleccion = lista_sugerencias.get(lista_sugerencias.curselection())  # Obtener el producto seleccionado
+            nombre_producto.set(seleccion)  # Establecer el nombre en el Entry
+            lista_sugerencias.place_forget()  # Ocultar la lista de sugerencias
+
+        ##### FUNCION PARA ELIMINAR EL PRODUCTO POR NOMBRE
+        def eliminar():
+            db = sqlite3.connect("database.db")
+            c = db.cursor()
+
+            nombre = nombre_producto.get()
+
+            # Verificar si existe un producto con el nombre ingresado
+            c.execute("SELECT * FROM productos WHERE nombre = ?", (nombre,))
+            producto = c.fetchone()
+
+            if producto:
+                # Eliminar el producto
+                c.execute("DELETE FROM productos WHERE nombre = ?", (nombre,))
                 db.commit()
-                c.close()
-                db.close()
-                messagebox.showinfo("MODIFICACION", "ARTICULO ELIMINADO")
-                window.destroy()
-                ventana_eliminar()
-                
-            # Boton para MENU
-            menu = tk.Button(window, text="MENU", fg="red", font=("arial", 12), cursor="hand2", relief="raised", command=window.destroy)
-            menu.pack()
-            menu.place(x=50, y=350)
-            
-            # Boton para ELIMINAR
-            bt_eliminar = tk.Button(window, text="ELIMINAR PRODUCTOS", fg="blue", font=("arial", 12), cursor="hand2", relief="raised", command=eliminar)
-            bt_eliminar.pack()
-            bt_eliminar.place(x=280, y=350)
+                messagebox.showinfo("MODIFICACION", f"Producto '{nombre}' eliminado.")
+            else:
+                messagebox.showwarning("No encontrado", "No se encontró ningún producto con ese nombre.")
+
+            c.close()
+            db.close()
+            window.destroy()
+            ventana_eliminar()
+
+        # Vincular eventos para autocompletado
+        lista_sugerencias.bind("<<ListboxSelect>>", seleccionar_sugerencia)
+        entry_widget.bind("<KeyRelease>", actualizar_sugerencias)
+
+        # Botón para volver al menú
+        menu = tk.Button(window, text="MENU", fg="red", font=("arial", 12), cursor="hand2", relief="raised", command=window.destroy)
+        menu.pack()
+        menu.place(x=50, y=350)
+
+        # Botón para eliminar productos
+        bt_eliminar = tk.Button(window, text="ELIMINAR PRODUCTOS", fg="blue", font=("arial", 12), cursor="hand2", relief="raised", command=eliminar)
+        bt_eliminar.pack()
+        bt_eliminar.place(x=280, y=350)
+
+
+
 
 
     ###########HISTORIAL DE VENTAS##############
@@ -305,7 +456,7 @@ def ventana_principal():
                 if dia < 1 or dia > max_dias():
                     dia_entry.delete(0, tk.END)
             except ValueError:
-                pass  # Ignore if it's not a number yet
+                pass
 
         def validar_mes(event):
             try:
@@ -317,31 +468,36 @@ def ventana_principal():
 
         def max_dias():
             mes = mes_entry.get()
-            if mes in ['4', '6', '9', '11']:  # Meses con 30 días
+            if mes in ['4', '6', '9', '11']:
                 return 30
-            elif mes == '2':  # Febrero con 28 días
+            elif mes == '2':
                 return 28
             else:
-                return 31  # El resto de meses con 31 días
+                return 31
 
         def buscar_por_fecha():
             dia = dia_entry.get()
             mes = mes_entry.get()
             anio = anio_entry.get()
 
-            # Formar la query basándonos en los valores proporcionados
-            query = "SELECT id, detalle, fecha, hora, total FROM historial_ventas WHERE 1=1"
+            if not dia and not mes and not anio:
+                return
+
+            query = """
+            SELECT id, fecha, hora, total FROM historial_ventas WHERE 1=1
+            """
             if dia:
                 query += f" AND SUBSTR(fecha, 1, 2) = '{dia.zfill(2)}'"
             if mes:
                 query += f" AND SUBSTR(fecha, 4, 2) = '{mes.zfill(2)}'"
             if anio:
                 query += f" AND SUBSTR(fecha, 7, 2) = '{anio.zfill(2)}'"
-            
+            query += " ORDER BY fecha DESC, hora DESC"
+
             mostrar_ventas(query)
 
         def mostrar_ventas(query=None):
-            for widget in details_frame.winfo_children():
+            for widget in ventas_frame.winfo_children():
                 widget.destroy()
 
             try:
@@ -349,33 +505,72 @@ def ventana_principal():
                 c = db.cursor()
 
                 if query is None:
-                    query = "SELECT id, detalle, fecha, hora, total FROM historial_ventas ORDER BY fecha DESC, hora DESC"
-                
+                    return
+
                 c.execute(query)
                 ventas = c.fetchall()
 
                 if ventas:
-                    row_num = 1
-                    for venta in ventas:
-                        detalle, fecha, hora, total = venta[1], venta[2], venta[3], venta[4]
+                    ventas_frame.place(relx=0.5, rely=0.15, anchor="n", width=900, height=200)
 
-                        productos = detalle.split('\n')
+                    # Agregar cabecera
+                    tk.Label(ventas_frame, text="Venta", font=("Arial", 12, "bold")).grid(row=0, column=0, padx=10, pady=5)
+                    tk.Label(ventas_frame, text="Hora", font=("Arial", 12, "bold")).grid(row=0, column=1, padx=40, pady=5)
 
-                        for idx, producto in enumerate(productos):
-                            if idx == 0:
-                                tk.Label(details_frame, text=f"{producto}", bg="white", anchor="w", borderwidth=1, relief="solid", width=100, padx=5).grid(row=row_num, column=0, padx=5, pady=5, sticky="w")
-                                tk.Label(details_frame, text=f"{fecha}", bg="white", anchor="w", borderwidth=1, relief="solid", width=20).grid(row=row_num, column=1, padx=5, pady=5)
-                                tk.Label(details_frame, text=f"{hora}", bg="white", anchor="w", borderwidth=1, relief="solid", width=15).grid(row=row_num, column=2, padx=5, pady=5)
-                                tk.Label(details_frame, text=f"${total:.2f}", bg="white", anchor="w", borderwidth=1, relief="solid", width=15).grid(row=row_num, column=3, padx=5, pady=5)
-                            else:
-                                tk.Label(details_frame, text=f"{producto}", bg="white", anchor="w", borderwidth=1, relief="solid", width=100, padx=5).grid(row=row_num, column=0, padx=5, pady=5, sticky="w")
+                    for idx, venta in enumerate(ventas, 1):
+                        venta_id, fecha, hora, total = venta
+                        tk.Button(ventas_frame, text=f"{idx}", font=("Arial", 12), width=20,
+                                command=lambda vid=venta_id: mostrar_detalles(vid)).grid(row=idx, column=0, padx=10, pady=5, sticky="w")
+                        tk.Label(ventas_frame, text=hora, font=("Arial", 12), anchor="w", width=10).grid(row=idx, column=1, padx=550, pady=5, sticky="w")
 
-                            row_num += 1
-
-                        tk.Label(details_frame, text="", bg="white").grid(row=row_num, column=0, columnspan=4, padx=5, pady=5)
-                        row_num += 1
+                    if len(ventas) > 10:
+                        scrollbar = tk.Scrollbar(ventas_frame)
+                        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+                        ventas_frame.config(yscrollcommand=scrollbar.set)
+                        scrollbar.config(command=ventas_frame.yview)
                 else:
-                    tk.Label(details_frame, text="No se encontraron ventas.", bg="white").grid(row=1, column=0, columnspan=4, padx=5, pady=5)
+                    tk.Label(ventas_frame, text="No se encontraron ventas.").grid(row=1, column=0, padx=10, pady=5)
+
+            except sqlite3.Error as e:
+                messagebox.showerror("Error", f"Error al conectar con la base de datos: {e}")
+            finally:
+                if c:
+                    c.close()
+                if db:
+                    db.close()
+
+        def mostrar_detalles(venta_id):
+            for widget in detalles_frame.winfo_children():
+                widget.destroy()
+
+            try:
+                db = sqlite3.connect("database.db")
+                c = db.cursor()
+
+                c.execute("""
+                SELECT productos.nombre, detalle_venta.cantidad, detalle_venta.precio_un, detalle_venta.total
+                FROM detalle_venta
+                JOIN productos ON productos.id = detalle_venta.producto_id
+                WHERE detalle_venta.venta_id = ?
+                """, (venta_id,))
+                detalles = c.fetchall()
+
+                if detalles:
+                    detalles_frame.place(relx=0.5, rely=0.4, anchor="n", width=900, height=200)
+                    row_num = 1
+                    for detalle in detalles:
+                        nombre, cantidad, precio_un, total = detalle
+                        tk.Label(detalles_frame, text=f"{nombre}", width=50, anchor="w", wraplength=350).grid(row=row_num, column=0, padx=5, pady=5, sticky="w")
+                        tk.Label(detalles_frame, text=f"{cantidad} u.", width=10, anchor="w").grid(row=row_num, column=1, padx=5, pady=5, sticky="w")
+                        tk.Label(detalles_frame, text=f"${precio_un:.2f} c/u", width=15, anchor="w").grid(row=row_num, column=2, padx=5, pady=5, sticky="w")
+                        tk.Label(detalles_frame, text=f"${total:.2f}", width=15, anchor="w").grid(row=row_num, column=3, padx=5, pady=5, sticky="w")
+                        row_num += 1
+
+                    if len(detalles) > 10:
+                        scrollbar = tk.Scrollbar(detalles_frame)
+                        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+                        detalles_frame.config(yscrollcommand=scrollbar.set)
+                        scrollbar.config(command=detalles_frame.yview)
 
             except sqlite3.Error as e:
                 messagebox.showerror("Error", f"Error al conectar con la base de datos: {e}")
@@ -390,43 +585,38 @@ def ventana_principal():
         historial.title("Historial de Ventas")
         historial.resizable(0, 0)
 
-        tk.Label(historial, text="VENTAS REALIZADAS :", bg="white", fg="black", font=("Arial", 14)).place(x=50, y=50)
+        search_frame = tk.Frame(historial)
+        search_frame.place(relx=0.5, rely=0.05, anchor="center")
 
-        # Campos de búsqueda por día, mes, año
-        tk.Label(historial, text="Día:", font=("Arial", 12)).place(x=500, y=50)
-        dia_entry = tk.Entry(historial, font=("Arial", 12), width=5)
-        dia_entry.place(x=550, y=50)
+        tk.Label(search_frame, text="FILTRAR VENTAS POR:", font=("Arial", 14)).grid(row=0, column=0, columnspan=6, pady=10)
+
+        tk.Label(search_frame, text="Día:", font=("Arial", 12)).grid(row=1, column=0)
+        dia_entry = tk.Entry(search_frame, font=("Arial", 12), width=5)
+        dia_entry.grid(row=1, column=1)
         dia_entry.bind('<KeyRelease>', validar_dia)
 
-        tk.Label(historial, text="Mes:", font=("Arial", 12)).place(x=600, y=50)
-        mes_entry = tk.Entry(historial, font=("Arial", 12), width=5)
-        mes_entry.place(x=650, y=50)
+        tk.Label(search_frame, text="Mes:", font=("Arial", 12)).grid(row=1, column=2)
+        mes_entry = tk.Entry(search_frame, font=("Arial", 12), width=5)
+        mes_entry.grid(row=1, column=3)
         mes_entry.bind('<KeyRelease>', validar_mes)
 
-        tk.Label(historial, text="Año:", font=("Arial", 12)).place(x=700, y=50)
-        anio_entry = tk.Entry(historial, font=("Arial", 12), width=5)
-        anio_entry.place(x=850, y=50)
+        tk.Label(search_frame, text="Año:", font=("Arial", 12)).grid(row=1, column=4)
+        anio_entry = tk.Entry(search_frame, font=("Arial", 12), width=5)
+        anio_entry.grid(row=1, column=5)
 
-        # Botón para buscar
-        buscar_button = tk.Button(historial, text="Buscar", command=buscar_por_fecha)
-        buscar_button.place(x=900, y=50)
+        buscar_button = tk.Button(search_frame, text="Buscar", command=buscar_por_fecha)
+        buscar_button.grid(row=2, column=0, columnspan=6, pady=10)
 
-        main_frame = tk.Frame(historial, bg="white")
-        main_frame.place(x=50, y=100, width=1500, height=600)
+        ventas_frame = tk.Frame(historial, bg="white")
+        detalles_frame = tk.Frame(historial, bg="white")
 
-        # Encabezados de las columnas
-        tk.Label(main_frame, text="DETALLE", bg="lightgray", width=100, anchor="w", borderwidth=1, relief="solid").grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        tk.Label(main_frame, text="FECHA", bg="lightgray", width=20, anchor="w", borderwidth=1, relief="solid").grid(row=0, column=1, padx=5, pady=5)
-        tk.Label(main_frame, text="HORA", bg="lightgray", width=15, anchor="w", borderwidth=1, relief="solid").grid(row=0, column=2, padx=5, pady=5)
-        tk.Label(main_frame, text="TOTAL", bg="lightgray", width=15, anchor="w", borderwidth=1, relief="solid").grid(row=0, column=3, padx=5, pady=5)
+        menu_button = tk.Button(historial, text="Volver", fg="red", font=("Arial", 12), command=historial.destroy)
+        menu_button.place(x=50, y=750)
 
-        details_frame = tk.Frame(main_frame, bg="white")
-        details_frame.grid(row=1, column=0, columnspan=4, padx=5, pady=5, sticky="w")
+        ventas_frame.place_forget()
+        detalles_frame.place_forget()
 
-        menu_button = tk.Button(historial, fg= "red", text="Volver", font= ("arial", 16),command= historial.destroy)
-        menu_button.place(x=40, y=800)
 
-        mostrar_ventas()
 
 
 
@@ -597,72 +787,50 @@ def ventana_principal():
 
             db.close()
 
-        # Asociar eventos de entrada con la función de actualización de sugerencias
-        entry_widget.bind("<KeyRelease>", actualizar_sugerencias)
-        lista_sugerencias.bind("<ButtonRelease-1>", seleccionar_sugerencia)
-
-        bt_agregar_producto = tk.Button(window, text="AÑADIR A LA COMPRA", fg="blue", font=("arial", 12), cursor="hand2", relief="raised", command=agregar_producto)
-        bt_agregar_producto.pack()
-        bt_agregar_producto.place(x=50, y=300)
-
-        def realizar_venta():
-            if not productos_compra:
-                messagebox.showerror("Error", "No hay productos en la compra")
-                return
-
+        def confirmar_compra():
             db = sqlite3.connect("database.db")
             c = db.cursor()
 
-            # Asegurarse de que el formato de la fecha sea dd/mm/yy
+            # Obtener la fecha y hora actual
             fecha_actual = datetime.now().strftime("%d/%m/%y")
             hora_actual = datetime.now().strftime("%H:%M:%S")
 
-            # Lista para almacenar el detalle de la venta
-            detalle_venta = []
+            # Insertar una nueva venta en la tabla historial_ventas
+            c.execute("INSERT INTO historial_ventas (fecha, hora, total) VALUES (?, ?, ?)", (fecha_actual, hora_actual, total_compra))
+            id_venta = c.lastrowid  # Obtener el ID de la venta recién insertada
 
-            # Registrar cada producto en la tabla 'carrito' y obtener el nombre desde la tabla 'productos'
-            for id_producto, cantidad, precio_unitario, monto_producto in productos_compra:
-                # Obtener el nombre del producto usando el ID del producto
-                c.execute("SELECT nombre FROM productos WHERE id = ?", (id_producto,))
-                nombre_producto = c.fetchone()[0]  # Obtenemos el nombre
+            # Insertar cada producto en la tabla detalle_venta
+            for producto_id, cantidad, precio_unitario, monto_producto in productos_compra:
+                c.execute("INSERT INTO detalle_venta (venta_id, producto_id, cantidad, precio_un, total) VALUES (?, ?, ?, ?, ?)",
+                        (id_venta, producto_id, cantidad, precio_unitario, monto_producto))
 
-                # Registrar el producto en la tabla 'carrito' con su nombre, cantidad, precio y total
-                c.execute("INSERT INTO carrito (nombre_prod, cantidad, precio_un, total) VALUES (?, ?, ?, ?)",
-                        (nombre_producto, cantidad, precio_unitario, monto_producto))
+                # Actualizar la cantidad disponible del producto en la tabla productos
+                c.execute("UPDATE productos SET cantidad = cantidad - ? WHERE id = ?", (cantidad, producto_id))
 
-                # Actualizar la cantidad del producto en 'productos'
-                c.execute("UPDATE productos SET cantidad = cantidad - ? WHERE id = ?", (cantidad, id_producto))
-
-                # Formatear la información del producto para el detalle de la venta
-                detalle_venta.append(f"{nombre_producto} (Cantidad: {cantidad}, Precio: ${precio_unitario:.2f})")
-
-            # Convertir la lista de productos en un string para el campo 'detalle' de la tabla 'historial_ventas'
-            detalle_venta_str = "; ".join(detalle_venta)
-
-            # Registrar la venta en la tabla 'historial_ventas' con la fecha en formato dd/mm/yy
-            c.execute("INSERT INTO historial_ventas (detalle, fecha, hora, total) VALUES (?, ?, ?, ?)",
-                    (detalle_venta_str, fecha_actual, hora_actual, total_compra))
-
-            # Vaciar la tabla 'carrito' después de registrar la venta
-            c.execute("DELETE FROM carrito")
-
+            # Confirmar los cambios y cerrar la base de datos
             db.commit()
             db.close()
 
-            messagebox.showinfo("VENTA REALIZADA", f"Venta realizada por un monto total de ${total_compra:.2f}")
+            # Limpiar la lista de productos y el total de la compra
+            productos_compra.clear()
+            total_label.config(text="Total: $0.00")
+            for widget in frame_compra.winfo_children():
+                widget.grid_forget()
 
-            # Reiniciar el estado de la ventana
-            productos_compra.clear()  # Vaciar la lista de productos en la compra actual
-            window.destroy()  # Cerrar la ventana de compra
-                # Botón para realizar la venta
-        bt_vender = tk.Button(window, text="REALIZAR VENTA", fg="blue", font=("arial", 12), cursor="hand2", relief="raised", command=realizar_venta)
-        bt_vender.pack()
-        bt_vender.place(x=300, y=550)
+            messagebox.showinfo("Compra confirmada", "La compra ha sido registrada exitosamente.")
 
-        # Botón para volver al menú
-        menu = tk.Button(window, text="Volver", fg="red", font=("arial", 12), cursor="hand2", relief="raised", command=window.destroy)
-        menu.pack()
-        menu.place(x=50, y=550)
+        # Botón para agregar productos
+        tk.Button(window, text="Agregar producto", command=agregar_producto).place(x=50, y=270)
+
+        # Botón para confirmar la compra
+        tk.Button(window, text="Confirmar compra", command=confirmar_compra).place(x=50, y=320)
+
+        # Evento de teclado para actualizar las sugerencias cuando se escribe en el Entry
+        entry_widget.bind("<KeyRelease>", actualizar_sugerencias)
+
+        # Evento para seleccionar el producto cuando se presiona una tecla en la Listbox
+        lista_sugerencias.bind("<Return>", seleccionar_sugerencia)
+
 
 
 
