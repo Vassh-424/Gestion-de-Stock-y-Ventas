@@ -33,6 +33,10 @@ def ventana_principal():
     detalle_ventasb= tk.Button(principal, text="Historial de Ventas", fg="blue", font=("arial", 30), borderwidth=5, cursor = "hand2",relief = "raised", command= lambda:ventana_historial())
     detalle_ventasb.pack()
     detalle_ventasb.place(x=900,y=450)
+    
+    btn_manual = tk.Button(principal, text="Manual",  fg="red", font=("arial", 15), borderwidth=5, cursor = "hand2",relief = "raised", command = lambda:manual())
+    btn_manual.pack()
+    btn_manual.place(x=1000,y=620)
 
 
     salir=tk.Button(principal,text="Salir", fg="red", font=("arial", 15), borderwidth=5, cursor = "hand2",relief = "raised", command = lambda:cerrar_programa())
@@ -58,23 +62,23 @@ def ventana_principal():
         marcos.config(width=1500, height=800)
 
 
-        agregar = tk.Button(marcos, text="AGREGAR PRODUCTO", fg="blue", font=("arial", 15), cursor="hand2", relief="raised", command= lambda:ventana_agregar())
+        agregar = tk.Button(marcos, text="AGREGAR PRODUCTO", fg="blue", font=("arial", 25), cursor="hand2", relief="raised", command= lambda:ventana_agregar())
         agregar.grid(row=0, column=0, padx=10, pady=20, sticky="w")
 
 
-        buscar = tk.Button(marcos, text="BUSCAR PRODUCTO", fg="blue", font=("arial", 15), cursor="hand2", relief="raised", command= lambda:ventana_ver())
+        buscar = tk.Button(marcos, text="BUSCAR PRODUCTO", fg="blue", font=("arial", 25), cursor="hand2", relief="raised", command= lambda:ventana_ver())
         buscar.grid(row=2, column=0, padx=10, pady=20, sticky="w")  # Ajuste del padding
 
 
-        modificar = tk.Button(marcos, text="MODIFICAR PRODUCTO", fg="blue", font=("arial", 15), cursor="hand2", relief="raised", command= lambda:modificar_producto())
+        modificar = tk.Button(marcos, text="MODIFICAR PRODUCTO", fg="blue", font=("arial", 25), cursor="hand2", relief="raised", command= lambda:modificar_producto())
         modificar.grid(row=3, column=0, padx=10, pady=40, sticky="w")  # Espacio adicional
 
 
-        eliminar = tk.Button(marcos, text="ELIMINAR PRODUCTO", fg="blue", font=("arial", 15), cursor="hand2", relief="raised", command= lambda:ventana_eliminar())
+        eliminar = tk.Button(marcos, text="ELIMINAR PRODUCTO", fg="blue", font=("arial", 25), cursor="hand2", relief="raised", command= lambda:ventana_eliminar())
         eliminar.grid(row=4, column=0, padx=10, pady=20, sticky="w")
 
 
-        menu = tk.Button(marcos, text="Volver", fg="red", font=("arial", 12), cursor="hand2", relief="raised", command=stock.destroy)
+        menu = tk.Button(marcos, text="Volver", fg="red", font=("arial", 20), cursor="hand2", relief="raised", command=stock.destroy)
         menu.grid(row=5, column=0, padx=10, pady=20, sticky="w")
 
 
@@ -151,97 +155,83 @@ def ventana_principal():
                 window.destroy()
                 ventana_agregar()  # Reabrir la ventana de agregar para continuar ingresando productos
 
+        #############BUSCAR PRODUCTO#############
 
         def ventana_ver():
+            def filtrar_productos(event=None):
+                """Filtrar productos según el texto ingresado en la barra de búsqueda."""
+                filtro = entry_busqueda.get().strip().lower()
+                for widget in productos_frame.winfo_children():
+                    widget.destroy()  # Limpiar los productos antes de mostrar los filtrados
+
+                mostrar_productos(filtro)
+
+            def mostrar_productos(filtro=""):
+                """Mostrar los productos en el frame, aplicando el filtro si es necesario."""
+                try:
+                    db = sqlite3.connect("database.db")
+                    c = db.cursor()
+                    consulta = 'SELECT nombre, precio, cantidad FROM productos WHERE nombre LIKE ? ORDER BY id DESC'
+                    c.execute(consulta, (f"%{filtro}%",))
+                    productos = c.fetchall()
+
+                    if productos:
+                        # Encabezados
+                        tk.Label(productos_frame, text="NOMBRE", bg="lightgray", width=30, anchor="w", borderwidth=1, relief="solid").grid(row=0, column=0, padx=10, pady=5, sticky="nsew")
+                        tk.Label(productos_frame, text="PRECIO", bg="lightgray", width=15, anchor="w", borderwidth=1, relief="solid").grid(row=0, column=1, padx=10, pady=5, sticky="nsew")
+                        tk.Label(productos_frame, text="CANTIDAD", bg="lightgray", width=10, anchor="w", borderwidth=1, relief="solid").grid(row=0, column=2, padx=10, pady=5, sticky="nsew")
+
+                        # Mostrar los productos
+                        for i, (nombre, precio, cantidad) in enumerate(productos):
+                            color_fondo = "lightcoral" if cantidad < 10 else "white"
+                            tk.Label(productos_frame, text=nombre, bg=color_fondo, anchor="w", borderwidth=1, relief="solid").grid(row=i+1, column=0, padx=10, pady=5, sticky="nsew")
+                            tk.Label(productos_frame, text=f"${precio:.2f}", bg=color_fondo, anchor="w", borderwidth=1, relief="solid").grid(row=i+1, column=1, padx=10, pady=5, sticky="nsew")
+                            tk.Label(productos_frame, text=cantidad, bg=color_fondo, anchor="w", borderwidth=1, relief="solid").grid(row=i+1, column=2, padx=10, pady=5, sticky="nsew")
+
+                        # Configurar las columnas para que se expandan
+                        productos_frame.grid_columnconfigure(0, weight=1)
+                        productos_frame.grid_columnconfigure(1, weight=1)
+                        productos_frame.grid_columnconfigure(2, weight=1)
+                    else:
+                        tk.Label(productos_frame, text="No se encontraron productos.", bg="white").grid(row=1, column=0, columnspan=3, padx=10, pady=10)
+
+                except sqlite3.Error as e:
+                    print(f"Error al conectar con la base de datos: {e}")
+                    tk.Label(productos_frame, text="Error al conectar con la base de datos.", bg="white").grid(row=1, column=0, columnspan=3, padx=10, pady=10)
+                finally:
+                    if c:
+                        c.close()
+                    if db:
+                        db.close()
+
+            # Ventana principal
             window = tk.Toplevel()
             window.state("zoomed")
             window.title("Busqueda(Modificar)")
 
-
-            # Crear un Frame principal para organizar los widgets con grid
+            # Frame principal
             frame = tk.Frame(window, bg="white")
             frame.pack(pady=20, padx=20, fill=tk.BOTH, expand=True)
 
+            # Barra de búsqueda
+            entry_busqueda = tk.Entry(frame, font=("Arial", 14))
+            entry_busqueda.grid(row=0, column=0, columnspan=4, padx=40, pady=10, sticky="nsew")
+            entry_busqueda.bind("<KeyRelease>", filtrar_productos)  # Evento para búsqueda en tiempo real
 
             # Frame para los productos
             productos_frame = tk.Frame(frame, bg="white")
             productos_frame.grid(row=1, column=0, columnspan=4, padx=50, pady=20, sticky="nsew")
 
-
-            # Hacer que la columna y fila del frame principal se expandan
+            # Configuración de expansión
             frame.grid_rowconfigure(1, weight=1)
             frame.grid_columnconfigure(0, weight=1)
 
-
-            # Conectar a la base de datos
-            try:
-                db = sqlite3.connect("database.db")
-                c = db.cursor()
-
-
-                # Consulta para obtener los datos de los productos
-                c.execute('SELECT nombre, precio, cantidad FROM productos ORDER BY id DESC')
-
-
-                # Obtener todos los datos y verificar que hay resultados
-                productos = c.fetchall()
-                print("Productos encontrados:", productos)  # Imprimir los productos para depuración
-
-
-                if productos:
-                    # Encabezados en el frame para que estén alineados con los datos
-                    tk.Label(productos_frame, text="NOMBRE", bg="lightgray", width=30, anchor="w", borderwidth=1, relief="solid").grid(row=0, column=0, padx=10, pady=5, sticky="nsew")
-                    tk.Label(productos_frame, text="PRECIO", bg="lightgray", width=15, anchor="w", borderwidth=1, relief="solid").grid(row=0, column=1, padx=10, pady=5, sticky="nsew")
-                    tk.Label(productos_frame, text="CANTIDAD", bg="lightgray", width=10, anchor="w", borderwidth=1, relief="solid").grid(row=0, column=2, padx=10, pady=5, sticky="nsew")
-
-
-                    # Mostrar los productos
-                    for i, row in enumerate(productos):
-                        nombre_producto = row[0]
-                        precio_producto = row[1]
-                        cantidad_producto = row[2]
-
-
-                        # Color de fondo en la fila si la cantidad es menor a 10
-                        color_fondo = "lightcoral" if cantidad_producto < 10 else "white"
-
-
-                        tk.Label(productos_frame, text=nombre_producto, bg=color_fondo, anchor="w", borderwidth=1, relief="solid").grid(row=i+1, column=0, padx=10, pady=5, sticky="nsew")
-                        tk.Label(productos_frame, text=f"${precio_producto:.2f}", bg=color_fondo, anchor="w", borderwidth=1, relief="solid").grid(row=i+1, column=1, padx=10, pady=5, sticky="nsew")
-                        tk.Label(productos_frame, text=f"{cantidad_producto}", bg=color_fondo, anchor="w", borderwidth=1, relief="solid").grid(row=i+1, column=2, padx=10, pady=5, sticky="nsew")
-
-
-                    # Configuración de las columnas para que se expandan equitativamente
-                    productos_frame.grid_columnconfigure(0, weight=1)
-                    productos_frame.grid_columnconfigure(1, weight=1)
-                    productos_frame.grid_columnconfigure(2, weight=1)
-
-
-                else:
-                    tk.Label(productos_frame, text="No se encontraron productos.", bg="white").grid(row=1, column=0, columnspan=3, padx=10, pady=10)
-
-
-            except sqlite3.Error as e:
-                print(f"Error al conectar con la base de datos: {e}")
-                tk.Label(productos_frame, text="Error al conectar con la base de datos.", bg="white").grid(row=1, column=0, columnspan=3, padx=10, pady=10)
-
-
-            finally:
-                # Cerrar la conexión y el cursor
-                if c:
-                    c.close()
-                if db:
-                    db.close()
-
-
-            # Botón de menú al final del grid
-            menu = tk.Button(frame, text="MENU", fg="red", font=("arial", 12), cursor="hand2", relief="raised", command=window.destroy)
+            # Botón de menú
+            menu = tk.Button(frame, text="MENU", fg="red", font=("Arial", 12), cursor="hand2", relief="raised", command=window.destroy)
             menu.grid(row=2, column=0, columnspan=4, pady=10)
 
-
-
-
-
+            # Mostrar los productos al iniciar
+            mostrar_productos()
 
 
 
@@ -273,7 +263,7 @@ def ventana_principal():
 
 
             # Etiqueta para el nombre del producto
-            etiquetanombre = tk.Label(window, text="INGRESE NOMBRE DEL PRODUCTO", padx=10).place(x=30, y=100)
+            etiquetanombre = tk.Label(window, text="Nombre del producto :",font=("Arial",12), padx=10).place(x=30, y=100)
 
 
             # Listbox para autocompletar
@@ -295,7 +285,7 @@ def ventana_principal():
 
 
             # Etiquetas e Inputs en el frame
-            tk.Label(frame_modificar, text="Nuevo Nombre:", padx=10).grid(row=0, column=0, pady=5)
+            tk.Label(frame_modificar, text="Nuevo Nombre:", padx=10, font=("Arial",12)).grid(row=0, column=0, pady=5)
             tk.Entry(frame_modificar, textvariable=entry_nuevo_nombre).grid(row=0, column=1, pady=5)
 
 
@@ -441,7 +431,7 @@ def ventana_principal():
 
 
         # Etiqueta para el nombre
-        etiquetanombre = tk.Label(window, text="INGRESE NOMBRE DEL PRODUCTO", font=("Arial", 12), padx=10).place(x=30, y=115)
+        etiquetanombre = tk.Label(window, text="Ingrese el nombre del producto a terminar:", font=("Arial", 12), padx=10).place(x=30, y=115)
 
 
         # Listbox para autocompletar
@@ -532,15 +522,16 @@ def ventana_principal():
 
 
         # Botón para volver al menú
-        menu = tk.Button(window, text="MENU", fg="red", font=("arial", 12), cursor="hand2", relief="raised", command=window.destroy)
+        menu = tk.Button(window, text="Cancelar", fg="red", font=("arial", 12), cursor="hand2", relief="raised", command=window.destroy)
         menu.pack()
         menu.place(x=50, y=350)
 
 
         # Botón para eliminar productos
-        bt_eliminar = tk.Button(window, text="ELIMINAR PRODUCTOS", fg="blue", font=("arial", 12), cursor="hand2", relief="raised", command=eliminar)
+        bt_eliminar = tk.Button(window, text="ELIMINAR PRODUCTO", fg="blue", font=("arial", 12), cursor="hand2", relief="raised", command=eliminar)
         bt_eliminar.pack()
         bt_eliminar.place(x=280, y=350)
+            
 
 
 
@@ -1070,6 +1061,39 @@ def ventana_principal():
 
         # Evento para seleccionar el producto cuando se presiona una tecla en la Listbox
         lista_sugerencias.bind("<Return>", seleccionar_sugerencia)
+    
+    def manual():
+        """Abre una ventana que muestra el contenido del archivo del manual."""
+        try:
+            # Leer el archivo del manual
+            with open("manual.txt", "r", encoding="utf-8") as f:
+                contenido = f.read()
+
+            # Crear una ventana para el manual
+            ventana_manual = tk.Toplevel()
+            ventana_manual.title("Manual de Usuario")
+            ventana_manual.geometry("800x600")  # Tamaño de la ventana
+
+            # Crear un Text widget para mostrar el contenido del manual
+            text_widget = tk.Text(ventana_manual, wrap=tk.WORD, font=("Arial", 12))
+            text_widget.pack(expand=True, fill=tk.BOTH)
+
+            # Insertar el contenido del archivo en el Text widget
+            text_widget.insert(tk.END, contenido)
+
+            # Deshabilitar la edición del contenido
+            text_widget.config(state=tk.DISABLED)
+
+            # Agregar un botón para cerrar la ventana
+            btn_cerrar = tk.Button(ventana_manual, text="Cerrar", command=ventana_manual.destroy)
+            btn_cerrar.pack(pady=10)
+
+        except FileNotFoundError:
+            messagebox.showerror("Error", "El archivo del manual no se encontró.")
+        except Exception as e:
+            messagebox.showerror("Error", f"Se produjo un error: {str(e)}")
+    
+
 
 
 #########FIN DE PRORGAMA PRINCIPAL#################
