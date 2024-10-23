@@ -125,7 +125,7 @@ def ventana_principal():
 
 
             # Botón para regresar al MENU
-            menu = tk.Button(window, text="MENU", fg="red", font=("arial", 12), cursor="hand2", relief="raised", command=window.destroy)
+            menu = tk.Button(window, text="MENU", fg="red", font=("arial", 12), cursor="hand2", relief="raised", command=lambda:[ventana_stock(),window.destroy])
             menu.place(x=50, y=450)
 
 
@@ -227,7 +227,7 @@ def ventana_principal():
             frame.grid_columnconfigure(0, weight=1)
 
             # Botón de menú
-            menu = tk.Button(frame, text="MENU", fg="red", font=("Arial", 12), cursor="hand2", relief="raised", command=window.destroy)
+            menu = tk.Button(frame, text="MENU", fg="red", font=("Arial", 12), cursor="hand2", relief="raised", command=lambda:[ventana_stock(),window.destroy])
             menu.grid(row=2, column=0, columnspan=4, pady=10)
 
             # Mostrar los productos al iniciar
@@ -272,7 +272,7 @@ def ventana_principal():
             lista_sugerencias.place_forget()  # Ocultarla inicialmente
 
 
-            # Frame para los inputs de modificar producto (oculto inicialmente)
+            # Frame para los inputs de modi5ficar producto (oculto inicialmente)
             frame_modificar = tk.Frame(window)
             frame_modificar.place(x=400, y=100)
             frame_modificar.place_forget()
@@ -363,34 +363,42 @@ def ventana_principal():
                 db = sqlite3.connect("database.db")
                 c = db.cursor()
 
-
                 nombre_producto = entry_nombre.get()
                 nuevo_nombre = entry_nuevo_nombre.get()
                 nueva_cantidad = entry_nueva_cantidad.get()
                 nuevo_precio = entry_nuevo_precio.get()
-
+                warning= tk.Label(frame_modificar, text="La cantidad debe ser un numero entero positivo")
+                warning.grid(row=2, column=2, pady=5)
+                warning.place_forget()
 
                 # Actualizar nombre si no está vacío
                 if nuevo_nombre:
                     c.execute("UPDATE productos SET nombre = ? WHERE nombre = ?", (nuevo_nombre, nombre_producto))
 
+                # Verificar si la nueva cantidad es válida, si no da error
+                if nueva_cantidad.isdigit():
+                    c.execute("SELECT cantidad FROM productos WHERE nombre = ?", (nombre_producto,))
+                    cantidad_actual = c.fetchone()[0]  # Obtener la cantidad actual
 
-                # Actualizar cantidad si no está vacía
-                if nueva_cantidad:
-                    c.execute("UPDATE productos SET cantidad = ? WHERE nombre = ?", (nueva_cantidad, nombre_producto))
-
+                    cantidad_final = cantidad_actual + int(nueva_cantidad)  # Sumar la nueva cantidad
+                    c.execute("UPDATE productos SET cantidad = ? WHERE nombre = ?", (cantidad_final, nombre_producto))
+                else:
+                    messagebox.showwarning("Error", "La cantidad debe ser un número positivo entero.")              
+                    return #Corregir. La ventana de error se muestra pero la ventana original se va para atras.
 
                 # Actualizar precio si no está vacío
                 if nuevo_precio:
                     c.execute("UPDATE productos SET precio = ? WHERE nombre = ?", (nuevo_precio, nombre_producto))
 
-
                 db.commit()
                 c.close()
                 db.close()
-                messagebox.showinfo("MODIFICACION", "ARTICULO MODIFICADO")
-                window.destroy()
-                modificar_producto()
+
+                messagebox.showinfo("MODIFICACIÓN", "ARTÍCULO MODIFICADO") # Cerrar la ventana de modificación una vez confirmados los cambios
+
+                modificar_producto()  # Volver a la ventana de modificación
+
+
 
 
             # Botón para confirmar los cambios
@@ -522,7 +530,7 @@ def ventana_principal():
 
 
         # Botón para volver al menú
-        menu = tk.Button(window, text="Cancelar", fg="red", font=("arial", 12), cursor="hand2", relief="raised", command=window.destroy)
+        menu = tk.Button(window, text="Cancelar", fg="red", font=("arial", 12), cursor="hand2", relief="raised", command=lambda:[ventana_stock(),window.destroy])
         menu.pack()
         menu.place(x=50, y=350)
 
@@ -792,7 +800,7 @@ def ventana_principal():
         # Frame para mostrar los detalles
         detalles_frame = tk.Frame(contenedor, bg="white")
 
-        menu_btn= tk.Button(ventana, text="VOLVER", font=("Arial", 12), fg="red", command=ventana.destroy)
+        menu_btn= tk.Button(ventana, text="VOLVER", font=("Arial", 12), fg="red", command=lambda:[ventana_principal(),ventana.destroy])
         menu_btn.pack()
         menu_btn.place(x=50, y=700)
 
@@ -1053,7 +1061,7 @@ def ventana_principal():
         tk.Button(window, text="CONFIRMAR COMPRA", fg="blue", font=("arial", 12), borderwidth=5, cursor = "hand2",relief = "raised", command=confirmar_compra).place(x=915, y=620)
 
 
-        tk.Button(window, text="Volver", fg="red", font=("arial", 12), borderwidth=5, cursor = "hand2",relief = "raised", command= window.destroy).place(x=50, y=620)
+        tk.Button(window, text="Volver", fg="red", font=("arial", 12), borderwidth=5, cursor = "hand2",relief = "raised", command=lambda:[ventana_principal(),window.destroy]).place(x=50, y=620)
        
         # Evento de teclado para actualizar las sugerencias cuando se escribe en el Entry
         entry_widget.bind("<KeyRelease>", actualizar_sugerencias)
@@ -1072,7 +1080,7 @@ def ventana_principal():
             # Crear una ventana para el manual
             ventana_manual = tk.Toplevel()
             ventana_manual.title("Manual de Usuario")
-            ventana_manual.geometry("800x600")  # Tamaño de la ventana
+            ventana_manual.state("zoomed")  # Tamaño de la ventana
 
             # Crear un Text widget para mostrar el contenido del manual
             text_widget = tk.Text(ventana_manual, wrap=tk.WORD, font=("Arial", 12))
@@ -1093,8 +1101,6 @@ def ventana_principal():
         except Exception as e:
             messagebox.showerror("Error", f"Se produjo un error: {str(e)}")
     
-
-
 
 #########FIN DE PRORGAMA PRINCIPAL#################
     principal.mainloop()
