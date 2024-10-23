@@ -1,3 +1,4 @@
+
 import sqlite3
 import tkinter as tk
 from tkinter import messagebox
@@ -296,6 +297,10 @@ def ventana_principal():
             tk.Label(frame_modificar, text="Nuevo Precio:", padx=10).grid(row=2, column=0, pady=5)
             tk.Entry(frame_modificar, textvariable=entry_nuevo_precio).grid(row=2, column=1, pady=5)
 
+            warning_label = tk.Label(frame_modificar, text="La cantidad debe ser un número entero positivo", fg="red")
+            warning_label.grid(row=1, column=2, padx=5)
+            warning_label.grid_remove()  # Ocultarlo inicialmente
+
 
             def actualizar_sugerencias(event=None):
                 """
@@ -367,24 +372,22 @@ def ventana_principal():
                 nuevo_nombre = entry_nuevo_nombre.get()
                 nueva_cantidad = entry_nueva_cantidad.get()
                 nuevo_precio = entry_nuevo_precio.get()
-                warning= tk.Label(frame_modificar, text="La cantidad debe ser un numero entero positivo")
-                warning.grid(row=2, column=2, pady=5)
-                warning.place_forget()
 
                 # Actualizar nombre si no está vacío
                 if nuevo_nombre:
                     c.execute("UPDATE productos SET nombre = ? WHERE nombre = ?", (nuevo_nombre, nombre_producto))
 
                 # Verificar si la nueva cantidad es válida, si no da error
-                if nueva_cantidad.isdigit():
+                if not nueva_cantidad.isdigit():
+                    warning_label.grid()  # Mostrar el label de advertencia
+                    return
+                else:
+                    warning_label.grid_remove()
                     c.execute("SELECT cantidad FROM productos WHERE nombre = ?", (nombre_producto,))
                     cantidad_actual = c.fetchone()[0]  # Obtener la cantidad actual
 
                     cantidad_final = cantidad_actual + int(nueva_cantidad)  # Sumar la nueva cantidad
                     c.execute("UPDATE productos SET cantidad = ? WHERE nombre = ?", (cantidad_final, nombre_producto))
-                else:
-                    messagebox.showwarning("Error", "La cantidad debe ser un número positivo entero.")              
-                    return #Corregir. La ventana de error se muestra pero la ventana original se va para atras.
 
                 # Actualizar precio si no está vacío
                 if nuevo_precio:
