@@ -1,7 +1,5 @@
-import sqlite3
 from tkinter import *
-from tkinter import messagebox
-from datetime import datetime
+from tkinter import Listbox, END
 import backend
 
 db= backend.Database()
@@ -22,7 +20,7 @@ def stock():
     agregar.grid(row=0, column=0, padx=10, pady=20, sticky="w")
 
 
-    buscar = Button(marcos, text="BUSCAR PRODUCTO", fg="blue", font=("arial", 25), cursor="hand2", relief="raised", command= lambda:ventana_ver())
+    buscar = Button(marcos, text="BUSCAR PRODUCTO", fg="blue", font=("arial", 25), cursor="hand2", relief="raised", command= lambda:ventana_ver(db))
     buscar.grid(row=2, column=0, padx=10, pady=20, sticky="w")  # Ajuste del padding
 
 
@@ -41,6 +39,7 @@ def stock():
 
     def cerrar_stock():
         stock.destroy()
+        
     ########AGREGAR PRODUCTO############
 
     def ventana_agregar():
@@ -114,87 +113,65 @@ def stock():
 
     #############BUSCAR PRODUCTO#############
 
-    def ventana_ver():
-        def filtrar_productos(event=None):
-            """Filtrar productos según el texto ingresado en la barra de búsqueda."""
-            filtro = entry_busqueda.get().strip().lower()
+    def ventana_ver(db):
+        def mostrar_productos(filtro=""):
+            # Clear existing widgets in the productos_frame
             for widget in productos_frame.winfo_children():
-                widget.destroy()  # Limpiar los productos antes de mostrar los filtrados
+                widget.destroy()
 
+            # Retrieve products from the database using the provided filter
+            productos = db.obtener_productos(filtro)
+
+            # Header row styling
+            Label(productos_frame, text="NOMBRE", bg="lightgray", width=30, anchor="w", font=("Arial", 12, "bold"), relief="solid").grid(row=0, column=0, padx=10, pady=5)
+            Label(productos_frame, text="PRECIO", bg="lightgray", width=15, anchor="w", font=("Arial", 12, "bold"), relief="solid").grid(row=0, column=1, padx=10, pady=5)
+            Label(productos_frame, text="CANTIDAD", bg="lightgray", width=10, anchor="w", font=("Arial", 12, "bold"), relief="solid").grid(row=0, column=2, padx=10, pady=5)
+
+            if productos:
+                for i, (nombre, precio, cantidad) in enumerate(productos, start=1):
+                    color_fondo = "lightcoral" if cantidad < 10 else "white"
+                    Label(productos_frame, text=nombre, bg=color_fondo, anchor="w", font=("Arial", 10), relief="solid").grid(row=i, column=0, padx=10, pady=5, sticky="w")
+                    Label(productos_frame, text=f"${precio:.2f}", bg=color_fondo, anchor="w", font=("Arial", 10), relief="solid").grid(row=i, column=1, padx=10, pady=5, sticky="w")
+                    Label(productos_frame, text=cantidad, bg=color_fondo, anchor="w", font=("Arial", 10), relief="solid").grid(row=i, column=2, padx=10, pady=5, sticky="w")
+            else:
+                Label(productos_frame, text="No se encontraron productos.", bg="white", font=("Arial", 10)).grid(row=1, column=0, columnspan=3, padx=10, pady=10)
+
+        def filtrar_productos(event=None):
+            # Fetch text from the search bar and use it as a filter
+            filtro = entry_busqueda.get().strip()
             mostrar_productos(filtro)
 
-        def mostrar_productos(filtro=""):
-            """Mostrar los productos en el frame, aplicando el filtro si es necesario."""
-            try:
-                db = sqlite3.connect("database.db")
-                c = db.cursor()
-                consulta = 'SELECT nombre, precio, cantidad FROM productos WHERE nombre LIKE ? ORDER BY id DESC'
-                c.execute(consulta, (f"%{filtro}%",))
-                productos = c.fetchall()
-
-                if productos:
-                    # Encabezados
-                    Label(productos_frame, text="NOMBRE", bg="lightgray", width=30, anchor="w", borderwidth=1, relief="solid").grid(row=0, column=0, padx=10, pady=5, sticky="nsew")
-                    Label(productos_frame, text="PRECIO", bg="lightgray", width=15, anchor="w", borderwidth=1, relief="solid").grid(row=0, column=1, padx=10, pady=5, sticky="nsew")
-                    Label(productos_frame, text="CANTIDAD", bg="lightgray", width=10, anchor="w", borderwidth=1, relief="solid").grid(row=0, column=2, padx=10, pady=5, sticky="nsew")
-
-                    # Mostrar los productos
-                    for i, (nombre, precio, cantidad) in enumerate(productos):
-                        color_fondo = "lightcoral" if cantidad < 10 else "white"
-                        Label(productos_frame, text=nombre, bg=color_fondo, anchor="w", borderwidth=1, relief="solid").grid(row=i+1, column=0, padx=10, pady=5, sticky="nsew")
-                        Label(productos_frame, text=f"${precio:.2f}", bg=color_fondo, anchor="w", borderwidth=1, relief="solid").grid(row=i+1, column=1, padx=10, pady=5, sticky="nsew")
-                        Label(productos_frame, text=cantidad, bg=color_fondo, anchor="w", borderwidth=1, relief="solid").grid(row=i+1, column=2, padx=10, pady=5, sticky="nsew")
-
-                    # Configurar las columnas para que se expandan
-                    productos_frame.grid_columnconfigure(0, weight=1)
-                    productos_frame.grid_columnconfigure(1, weight=1)
-                    productos_frame.grid_columnconfigure(2, weight=1)
-                else:
-                    Label(productos_frame, text="No se encontraron productos.", bg="white").grid(row=1, column=0, columnspan=3, padx=10, pady=10)
-
-            except sqlite3.Error as e:
-                print(f"Error al conectar con la base de datos: {e}")
-                Label(productos_frame, text="Error al conectar con la base de datos.", bg="white").grid(row=1, column=0, columnspan=3, padx=10, pady=10)
-            finally:
-                if c:
-                    c.close()
-                if db:
-                    db.close()
-
-        # Ventana principal
+        # Main window setup
         window = Toplevel()
         window.state("zoomed")
-        window.title("Busqueda(Modificar)")
+        window.title("Busqueda")
+        window.resizable(0,0)
 
-        # Frame principal
         frame = Frame(window, bg="white")
         frame.pack(pady=20, padx=20, fill=BOTH, expand=True)
 
-        # Barra de búsqueda
+        # Search bar
         entry_busqueda = Entry(frame, font=("Arial", 14))
         entry_busqueda.grid(row=0, column=0, columnspan=4, padx=40, pady=10, sticky="nsew")
-        entry_busqueda.bind("<KeyRelease>", filtrar_productos)  # Evento para búsqueda en tiempo real
+        entry_busqueda.bind("<KeyRelease>", filtrar_productos)
 
-        # Frame para los productos
+        # Products frame
         productos_frame = Frame(frame, bg="white")
         productos_frame.grid(row=1, column=0, columnspan=4, padx=50, pady=20, sticky="nsew")
 
-        # Configuración de expansión
+        # Grid configuration for adaptive resizing
         frame.grid_rowconfigure(1, weight=1)
         frame.grid_columnconfigure(0, weight=1)
 
-        # Botón de menú
+        # Menu button
         menu = Button(frame, text="MENU", fg="red", font=("Arial", 12), cursor="hand2", relief="raised", command=window.destroy)
         menu.grid(row=2, column=0, columnspan=4, pady=10)
 
-        # Mostrar los productos al iniciar
+        # Initial product display
         mostrar_productos()
 
 
-
-
     ########MODIFICAR PRODUCTO############
-
 
     def modificar_producto():
         window = Toplevel()
@@ -202,98 +179,78 @@ def stock():
         window.title("Modificar producto")
         window.resizable(0, 0)
 
-
-        e1 = Label(window, text=" MODIFICAR PRODUCTOS :", bg="white", fg="black").place(x=50, y=50)
-
+        # Título de la ventana
+        Label(window, text="MODIFICAR PRODUCTOS:", bg="white", fg="black").place(x=50, y=50)
 
         # Variable para el nombre del producto
         entry_nombre = StringVar()
         entry_widget = Entry(window, textvariable=entry_nombre)
         entry_widget.place(x=50, y=150)
 
-
         # Etiqueta para el nombre del producto
-        etiquetanombre = Label(window, text="Nombre del producto :",font=("Arial",12), padx=10).place(x=30, y=100)
-
+        Label(window, text="Nombre del producto:", font=("Arial", 12), padx=10).place(x=30, y=100)
 
         # Listbox para autocompletar
         lista_sugerencias = Listbox(window, width=30, height=5, font=("Arial", 10))
         lista_sugerencias.place(x=50, y=180)  # Colocar justo debajo del Entry
         lista_sugerencias.place_forget()  # Ocultarla inicialmente
 
-
-        # Frame para los inputs de modi5ficar producto (oculto inicialmente)
+        # Frame para los inputs de modificar producto (oculto inicialmente)
         frame_modificar = Frame(window)
         frame_modificar.place(x=400, y=100)
         frame_modificar.place_forget()
-
 
         # Variables para los nuevos valores
         entry_nuevo_nombre = StringVar()
         entry_nueva_cantidad = StringVar()
         entry_nuevo_precio = StringVar()
 
-
         # Etiquetas e Inputs en el frame
-        Label(frame_modificar, text="Nuevo Nombre:", padx=10, font=("Arial",12)).grid(row=0, column=0, pady=5)
+        Label(frame_modificar, text="Nuevo Nombre:", padx=10, font=("Arial", 12)).grid(row=0, column=0, pady=5)
         Entry(frame_modificar, textvariable=entry_nuevo_nombre).grid(row=0, column=1, pady=5)
-
 
         Label(frame_modificar, text="Nueva Cantidad:", padx=10).grid(row=1, column=0, pady=5)
         Entry(frame_modificar, textvariable=entry_nueva_cantidad).grid(row=1, column=1, pady=5)
 
-
         Label(frame_modificar, text="Nuevo Precio:", padx=10).grid(row=2, column=0, pady=5)
         Entry(frame_modificar, textvariable=entry_nuevo_precio).grid(row=2, column=1, pady=5)
-        
-        
+
         warning_label = Label(frame_modificar, text="", fg="red")
         warning_label.grid(row=5, column=4)
-        
+
         success_label = Label(frame_modificar, text="", fg="green")
         success_label.grid(row=5, column=4)
 
         error_label = Label(frame_modificar, text="", fg="red")
         error_label.grid(row=5, column=4)
 
-
         def actualizar_sugerencias(event=None):
             """
             Función que busca productos que coincidan con el texto ingresado y actualiza la lista de sugerencias.
             """
             nombre_producto = entry_nombre.get()
+            
+            # Si no hay texto, ocultamos la lista de sugerencias
             if not nombre_producto:
                 lista_sugerencias.place_forget()
                 return
 
+            # Llamar a la función del backend para obtener los productos
+            productos = db.buscar_productos(nombre_producto)
 
-            # Conectar a la base de datos y buscar coincidencias
-            db = sqlite3.connect("database.db")
-            c = db.cursor()
-
-
-            c.execute("SELECT nombre FROM productos WHERE nombre LIKE ?", ('%' + nombre_producto + '%',))
-            productos = c.fetchall()
-
-
-            db.close()
-
-
-            # Actualizar la Listbox con las sugerencias
-            lista_sugerencias.delete(0, END)  # Limpiar la lista previa
-
+            # Limpiar la lista de sugerencias antes de agregar los nuevos resultados
+            lista_sugerencias.delete(0, END)
 
             if productos:
+                # Si hay productos, agregarlos a la lista de sugerencias
                 for producto in productos:
                     lista_sugerencias.insert(END, producto[0])
-
 
                 # Mostrar la Listbox si hay resultados
                 lista_sugerencias.place(x=50, y=180)
             else:
-                # Ocultar la Listbox si no hay coincidencias
+                # Si no hay coincidencias, ocultar la lista
                 lista_sugerencias.place_forget()
-
 
         def seleccionar_sugerencia(event=None):
             """
@@ -302,21 +259,28 @@ def stock():
             seleccion = lista_sugerencias.get(lista_sugerencias.curselection())  # Obtener el producto seleccionado
             entry_nombre.set(seleccion)  # Establecer el nombre en el Entry
             lista_sugerencias.place_forget()  # Ocultar la lista de sugerencias
-            frame_modificar.place(x=400, y=100)  # Mostrar el frame para modificar producto
 
+            # Mostrar el frame para modificar el producto
+            frame_modificar.place(x=400, y=100)
 
-        # Ocultar el frame y resetear inputs cuando se vuelve a hacer clic en el campo de búsqueda o se presiona el botón cancelar
+        # Vincular el evento de actualización de sugerencias al campo de texto
+        entry_widget.bind("<KeyRelease>", actualizar_sugerencias)
+
+        # Vincular el evento de selección de sugerencia
+        lista_sugerencias.bind("<ButtonRelease-1>", seleccionar_sugerencia)
+
+        # Cuando se hace clic en el Entry, ocultar el frame de modificación si no se ha seleccionado nada
+        entry_widget.bind("<Button-1>", lambda event: frame_modificar.place_forget())
+
         def ocultar_modificar(event=None):
+            """
+            Función que oculta el frame de modificación y resetea los campos.
+            """
             frame_modificar.place_forget()
             entry_nuevo_nombre.set("")
             entry_nueva_cantidad.set("")
             entry_nuevo_precio.set("")
 
-
-        # Vincular eventos
-        lista_sugerencias.bind("<<ListboxSelect>>", seleccionar_sugerencia)
-        entry_widget.bind("<Button-1>", ocultar_modificar)
-        entry_widget.bind("<KeyRelease>", actualizar_sugerencias)
 
         def validar_nombre(nombre_producto):
             print(f"Validando nombre: {nombre_producto}")  # Para depuración

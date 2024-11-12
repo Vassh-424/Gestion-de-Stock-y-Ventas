@@ -4,6 +4,11 @@ from datetime import datetime
 class Database:
     def __init__(self, db_name='database.db'):
         self.db_name = db_name
+        try:
+            self.conn = sqlite3.connect(db_name)
+        except sqlite3.Error as e:
+            print(f"Error al conectar a la base de datos: {e}")
+            self.conn = None
 
     def connect(self):
         """Conecta a la base de datos SQLite."""
@@ -77,6 +82,18 @@ class Database:
                 db.commit()
                 return True
             return False
+        
+    def obtener_productos(self, filtro=""):
+        """Fetch products from the database that match the filter."""
+        try:
+            with self.conn:
+                cursor = self.conn.cursor()
+                consulta = 'SELECT nombre, precio, cantidad FROM productos WHERE nombre LIKE ? ORDER BY id DESC'
+                cursor.execute(consulta, (f"%{filtro}%",))
+                return cursor.fetchall()
+        except sqlite3.Error as e:
+            print(f"Error al obtener productos: {e}")
+            return []
 
 ######METODOS PARA NUEVA VENTA###############
     # Métodos para la tabla carrito
@@ -171,36 +188,61 @@ class Database:
             cursor.execute("SELECT * FROM historial_ventas")
             historial = cursor.fetchall()
             return historial
-   
-    def buscar_ventas_por_fecha(self, dia=None, mes=None, anio=None):
-        query = "SELECT id, fecha, hora, total FROM historial_ventas"
-        conditions = []
-        parameters = []
+        
+    def buscar_ventas_por_fecha(self, dia, mes, anio):
+        # Inicializamos los parámetros de la consulta
+        params = []
+        sql = "SELECT * FROM historial_ventas"  # Comenzamos sin WHERE
 
-        if dia:
-            conditions.append("DAY(fecha) = ?")
-            parameters.append(dia)
+        # Comprobamos si el mes es proporcionado
         if mes:
-            conditions.append("MONTH(fecha) = ?")
-            parameters.append(mes)
+            if params:
+                sql+=" AND"
+            else:
+                sql += " WHERE"
+            sql +=" strftime('%m', fecha) = ?"
+            params.append(mes.zfill(2))  # Asegurarse de que el mes tenga dos dígitos
+            print(f"Mes proporcionado: {mes.zfill(2)}")  # Depuración
+
+        # Comprobamos si el año es proporcionado
         if anio:
-            conditions.append("YEAR(fecha) = ?")
-            parameters.append(anio)
+            if params:  # Si ya se añadió un filtro, usamos AND
+                sql += " AND"
+            else:
+                sql += " WHERE"  # Si no se añadió un filtro de mes, usamos WHERE
+            sql += " strftime('%Y', fecha) = ?"
+            params.append(anio.zfill(4))  # Asegurarse de que el año tenga cuatro dígitos
+            print(f"Año proporcionado: {anio.zfill(4)}")  # Depuración
 
-        if conditions:
-            query += " WHERE " + " AND ".join(conditions)
+        # Si no se proporciona ni mes ni año, devolvemos todas las ventas
+        if not params:
+            sql = "SELECT * FROM historial_ventas"  # Sin filtros si no hay parámetros
+            print("No se proporcionaron filtros, devolviendo todas las ventas.")  # Depuración
 
-        # Ordenar por fecha y hora descendente
-        query += " ORDER BY strftime('%Y-%m-%d %H:%M:%S', fecha) DESC"
+        # Verifica si los parámetros están bien formateados
+        print(f"Parámetros a pasar: {params}")
 
+        # Imprimir la consulta y los parámetros antes de ejecutar
+        print(f"Consulta SQL: {sql} con parámetros {params}")
+
+        # Ejecutar la consulta con los parámetros
+        cursor = self.conn.cursor()
         try:
-            conn = self.connect()
-            cursor = conn.cursor()
-            cursor.execute(query, tuple(parameters))
-            return cursor.fetchall()
-        except sqlite3.Error as e:
+            cursor.execute(sql, params)
+            resultados = cursor.fetchall()
+
+            # Verificar los resultados en la base de datos
+            if resultados:
+                print(f"Resultados encontrados: {len(resultados)}")
+                for r in resultados:
+                    print(r)  # Depuración para mostrar cada fila obtenida
+            else:
+                print("No se encontraron resultados con los parámetros dados.")
+        except Exception as e:
             print(f"Error al ejecutar la consulta: {e}")
-            return []
+            resultados = []
+
+        return resultados
             
     def obtener_ventas():
         db = sqlite3.connect("database.db")

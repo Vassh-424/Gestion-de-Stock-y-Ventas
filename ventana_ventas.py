@@ -1,7 +1,4 @@
-import main
-import sqlite3
 from tkinter import *
-from tkinter import messagebox
 from datetime import datetime
 from backend import Database
 
@@ -143,6 +140,17 @@ def ventas():
     productos_compra = []  # Lista para almacenar los productos seleccionados
     total_compra = 0       # Variable para el total de la compra
 
+    mensaje_label = Label(window, text="", font=("Arial", 12), fg="green")
+    mensaje_label.place(x=300, y=650)
+
+    def mostrar_mensaje(mensaje, tipo="info"):
+        """
+        Muestra un mensaje en la etiqueta de mensaje y cambia el color según el tipo de mensaje.
+        """
+        colores = {"info": "green", "error": "red"}
+        mensaje_label.config(text=mensaje, fg=colores.get(tipo, "black"))
+        mensaje_label.after(3000, lambda: mensaje_label.config(text=""))  # Borrar el mensaje después de 3 segundos
+
     def agregar_producto():
         nombre_producto = entry_nombre.get()
         cantidad = int(entry_cantidad.get())
@@ -151,66 +159,53 @@ def ventas():
         resultado = db.buscar_producto_por_nombre(nombre_producto)
         
         if not resultado:
-            messagebox.showerror("Error", "Producto no encontrado")
+            mostrar_mensaje("Producto no encontrado", "error")
             return
 
-        # Asignar resultados a variables separadas
         producto_id, nombre_producto, precio_unitario, cantidad_disponible = resultado
 
-        # Verificar si la cantidad solicitada es mayor a la disponible
         if cantidad > cantidad_disponible:
-            messagebox.showerror("Error", "Cantidad solicitada excede la cantidad disponible")
+            mostrar_mensaje("Cantidad solicitada excede la cantidad disponible", "error")
             return
 
-        # Calcular el monto total del producto
         monto_producto = cantidad * precio_unitario
-
-        # Añadir producto a la lista de compra
         productos_compra.append((producto_id, cantidad, precio_unitario, monto_producto))
 
-        # Calcular el número de filas actuales en el frame de compra
         row_count = len(productos_compra)
-
-        # Insertar los detalles del producto en el frame usando grid
         Label(frame_compra, text=nombre_producto, font=("Arial", 10), bg="white").grid(row=row_count, column=0, padx=10, pady=5)
         Label(frame_compra, text=str(cantidad), font=("Arial", 10), bg="white").grid(row=row_count, column=1, padx=10, pady=5)
         Label(frame_compra, text=f"${precio_unitario:.2f}", font=("Arial", 10), bg="white").grid(row=row_count, column=2, padx=10, pady=5)
         Label(frame_compra, text=f"${monto_producto:.2f}", font=("Arial", 10), bg="white").grid(row=row_count, column=3, padx=10, pady=5)
         Button(frame_compra, text="X", font=("Arial", 10), fg="red", command=lambda idx=row_count-1: eliminar_producto(idx)).grid(row=row_count, column=4, padx=10, pady=5)
 
-        # Actualizar el total de la compra
         global total_compra
         total_compra += monto_producto
         total_label.config(text=f"Total: ${total_compra:.2f}")
 
+        mostrar_mensaje("Producto agregado exitosamente")
 
     def confirmar_compra():
         global total_compra
-
-        # Obtener la fecha y hora actual
-        fecha_actual = datetime.now().strftime("%d/%m/%y")
+        fecha_actual = datetime.now().strftime("%Y-%m-%d")
         hora_actual = datetime.now().strftime("%H:%M:%S")
-
-        # Insertar una nueva venta en la tabla historial_ventas usando el backend
         id_venta = db.insertar_venta(fecha_actual, hora_actual, total_compra)
 
-        # Insertar cada producto en la tabla detalle_venta usando el backend
         for producto_id, cantidad, precio_unitario, monto_producto in productos_compra:
             db.insertar_detalle_venta(id_venta, producto_id, cantidad, precio_unitario, monto_producto)
-            
-            # Actualizar la cantidad disponible del producto en la tabla productos
             db.actualizar_cantidad_producto(producto_id, cantidad)
 
-        # Confirmar los cambios y cerrar la base de datos
-        total_compra = 0  # Restablecer el total de la compra
-
-        # Limpiar la lista de productos y el total de la compra
+        total_compra = 0
         productos_compra.clear()
         total_label.config(text="Total: $0.00")
         for widget in frame_compra.winfo_children():
             widget.grid_forget()
 
-        messagebox.showinfo("Compra confirmada", "La compra ha sido registrada exitosamente.")
+        entry_nombre.set("")
+        entry_cantidad.set("")
+        mostrar_mensaje("La compra ha sido registrada exitosamente")
+
+    # Evento para mostrar sugerencias
+    entry_widget.bind("<KeyRelease>", actualizar_sugerencias)
 
 
     # Botón para agregar productos

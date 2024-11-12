@@ -1,5 +1,4 @@
 from tkinter import *
-from tkinter import messagebox
 import ventana_stock
 import ventana_historial
 import ventana_ventas
@@ -18,8 +17,13 @@ def ventana_principal():
     titulo= Label(text="GESTION DE STOCK Y VENTAS V1",padx=10, font=("Arial", 40, "bold"))
     titulo.pack()
     titulo.place(x=60,y=50)
+    
+    image = PhotoImage(file="patroclo.png")
 
-
+    # Crear un widget Label que mostrará la imagen
+    label = Label(principal, image=image)
+    label.pack()
+    label.place(x=120,y=130)
 
     stockb=Button(principal,text="Stock", fg="blue", font=("arial", 35), borderwidth=5, cursor = "hand2",relief = "raised",  command = lambda:ventana_stock.stock())
     stockb.pack()
@@ -38,9 +42,6 @@ def ventana_principal():
     salir=Button(principal,text="Salir", fg="red", font=("arial", 20), borderwidth=5, cursor = "hand2",relief = "raised", command = principal.quit)
     salir.pack()
     salir.place(x=1500,y=800)
-    
-    def cerrar():
-        principal.destroy()
 
 #########FIN DE PRORGAMA PRINCIPAL#################
     principal.mainloop()
